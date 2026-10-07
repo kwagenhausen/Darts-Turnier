@@ -236,7 +236,7 @@ export default function App() {
           <div className="text-center space-y-4">
             <Icons.Trophy className="w-20 h-20 mx-auto text-blue-600 mb-4" />
             <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">Darts Turnier Manager</h1>
-            <p className="text-slate-500 text-lg">Konfiguriere dein Turnier im hellen Design</p>
+            <p className="text-slate-500 text-lg">Konfiguriere dein Turnier</p>
           </div>
 
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
