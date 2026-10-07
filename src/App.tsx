@@ -33,10 +33,12 @@ const Icons = {
   ),
   Swords: ({ className }: { className?: string }) => (
     <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M14.5 17.5L3 6V3h3l11.5 11.5"/><path d="M13 19l6-6"/><path d="M16 16l4 4"/><path d="M19 21l2-2"/><path d="M14.5 6.5L18 3h3v3l-3.5 3.5"/><path d="M10 14.5l-4 4"/><path d="M5 19l-2 2"/><path d="M3 21l2-2"/><path d="M7 17l-4-4"/></svg>
+  ),
+  Info: ({ className }: { className?: string }) => (
+    <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"/><line x1="12" y1="16" x2="12" y2="12"/><line x1="12" y1="8" x2="12.01" y2="8"/></svg>
   )
 };
 
-// Custom Hook for localStorage
 function useStickyState(defaultValue: any, key: string) {
   const [value, setValue] = useState(() => {
     const stickyValue = window.localStorage.getItem(key);
@@ -56,22 +58,22 @@ const DEFAULT_TEAMS = [
 ];
 
 export default function App() {
-  const [tournamentName, setTournamentName] = useStickyState('Elmenhorster Darts Open', 'darts_name_v2');
-  const [status, setStatus] = useStickyState('SETUP', 'darts_status_v2'); // 'SETUP' or 'LIVE'
+  const [tournamentName, setTournamentName] = useStickyState('Elmenhorster Darts Open', 'darts_name_v3');
+  const [additionalInfo, setAdditionalInfo] = useStickyState('501 Double Out, Einsatz 5€', 'darts_info_v3'); // New field
+  const [status, setStatus] = useStickyState('SETUP', 'darts_status_v3');
   
-  // New Settings State
-  const [tourneyType, setTourneyType] = useStickyState('team', 'darts_type_v2'); // 'single' or 'team'
-  const [boardCount, setBoardCount] = useStickyState(1, 'darts_boards_v2'); // 1 or 2
-  const [tournamentMode, setTournamentMode] = useStickyState('1_gruppe_elmenhorst', 'darts_mode_v2'); 
+  const [tourneyType, setTourneyType] = useStickyState('team', 'darts_type_v3');
+  const [boardCount, setBoardCount] = useStickyState(1, 'darts_boards_v3');
+  const [tournamentMode, setTournamentMode] = useStickyState('1_gruppe_elmenhorst', 'darts_mode_v3'); 
 
-  const [participants, setParticipants] = useStickyState(DEFAULT_TEAMS, 'darts_participants_v2');
+  const [participants, setParticipants] = useStickyState(DEFAULT_TEAMS, 'darts_participants_v3');
   
-  const [leagueMatches, setLeagueMatches] = useStickyState([], 'darts_league_matches_v2');
+  const [leagueMatches, setLeagueMatches] = useStickyState([], 'darts_league_matches_v3');
   const [koMatches, setKoMatches] = useStickyState({
-    sf1: { scoreA: '', scoreB: '' }, // For Top4 and Kreuz
-    sf2: { scoreA: '', scoreB: '' }, // For Elmenhorst, Top4 and Kreuz
+    sf1: { scoreA: '', scoreB: '' },
+    sf2: { scoreA: '', scoreB: '' },
     final: { scoreA: '', scoreB: '' }
-  }, 'darts_ko_matches_v2');
+  }, 'darts_ko_matches_v3');
 
   const [showResetModal, setShowResetModal] = useState(false);
 
@@ -94,18 +96,15 @@ export default function App() {
   const startTournament = () => {
     let updatedParticipants = [...participants];
     
-    // Group Assignment if 2 Groups mode
     if (tournamentMode === '2_gruppen_kreuz') {
         updatedParticipants = updatedParticipants.map((p, index) => ({
-            ...p,
-            group: index % 2 === 0 ? 'A' : 'B'
+            ...p, group: index % 2 === 0 ? 'A' : 'B'
         }));
     } else {
         updatedParticipants = updatedParticipants.map(p => ({ ...p, group: 'A' }));
     }
     setParticipants(updatedParticipants);
 
-    // Generate Matches
     let matches: any[] = [];
     let matchIdCounter = 1;
 
@@ -118,9 +117,7 @@ export default function App() {
                     id: `m${matchIdCounter++}`,
                     teamAId: groupParticipants[i].id,
                     teamBId: groupParticipants[j].id,
-                    scoreA: '',
-                    scoreB: '',
-                    group: groupFilter
+                    scoreA: '', scoreB: '', group: groupFilter
                 });
             }
         }
@@ -130,7 +127,6 @@ export default function App() {
     if (tournamentMode === '2_gruppen_kreuz') {
         const matchesA = generateRoundRobin('A');
         const matchesB = generateRoundRobin('B');
-        // Interleave matches from Group A and Group B for better flow
         const maxLength = Math.max(matchesA.length, matchesB.length);
         for(let i=0; i<maxLength; i++){
             if(matchesA[i]) matches.push(matchesA[i]);
@@ -140,7 +136,6 @@ export default function App() {
         matches = generateRoundRobin('A');
     }
 
-    // Assign Boards
     matches = matches.map((m, idx) => ({
         ...m,
         board: boardCount === 2 ? (idx % 2 === 0 ? 1 : 2) : 1
@@ -191,7 +186,7 @@ export default function App() {
 
     sortedTable.sort((a: any, b: any) => {
       if (b.legDiff !== a.legDiff) return b.legDiff - a.legDiff;
-      return b.legsFor - a.legsFor; // Fallback: Meiste gewonnene Legs
+      return b.legsFor - a.legsFor;
     });
 
     return sortedTable;
@@ -225,295 +220,286 @@ export default function App() {
   if (status === 'SETUP') {
     let minPlayers = 3;
     if(tournamentMode === '1_gruppe_top4') minPlayers = 4;
-    if(tournamentMode === '2_gruppen_kreuz') minPlayers = 4; // Ideally 6+
+    if(tournamentMode === '2_gruppen_kreuz') minPlayers = 4;
 
     const isStartDisabled = participants.length < minPlayers;
 
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 md:p-8">
-        <div className="max-w-5xl mx-auto space-y-8">
-          
-          <div className="text-center space-y-4">
-            <Icons.Trophy className="w-20 h-20 mx-auto text-blue-600 mb-4" />
-            <h1 className="text-4xl font-extrabold tracking-tight text-slate-900">Darts Turnier Manager</h1>
-            <p className="text-slate-500 text-lg">Konfiguriere dein Turnier</p>
+      <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 overflow-y-auto">
+        <div className="max-w-5xl mx-auto space-y-6">
+          <div className="text-center space-y-2">
+            <Icons.Trophy className="w-16 h-16 mx-auto text-blue-600 mb-2" />
+            <h1 className="text-3xl font-extrabold tracking-tight text-slate-900">Darts Turnier Manager</h1>
+            <p className="text-slate-500 text-sm">Konfiguriere dein Turnier für den TV-Screen</p>
           </div>
 
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
             {/* COLUMN 1: Settings */}
-            <div className="lg:col-span-1 space-y-6">
-                <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm space-y-6">
-                    <h2 className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-4">
+            <div className="lg:col-span-1 space-y-4">
+                <div className="bg-white border border-slate-200 rounded-xl p-5 shadow-sm space-y-4">
+                    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-2">
                         <Icons.Settings className="w-4 h-4" /> Einstellungen
                     </h2>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Turniername</label>
-                        <input 
-                            type="text" value={tournamentName} onChange={(e) => setTournamentName(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-500 transition-colors"
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700">Turniername</label>
+                        <input type="text" value={tournamentName} onChange={(e) => setTournamentName(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
                         />
                     </div>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Turnierart</label>
-                        <select 
-                            value={tourneyType} onChange={(e) => setTourneyType(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700">Zusatzinfos / Regeln</label>
+                        <textarea value={additionalInfo} onChange={(e) => setAdditionalInfo(e.target.value)} rows={2}
+                            placeholder="z.B. 501 Double Out, Best of 3..."
+                            className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 resize-none"
+                        />
+                    </div>
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700">Turnierart</label>
+                        <select value={tourneyType} onChange={(e) => setTourneyType(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
                         >
                             <option value="single">Einzelspieler</option>
                             <option value="team">Teams (2er)</option>
                         </select>
                     </div>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Anzahl Dartboards</label>
-                        <select 
-                            value={boardCount} onChange={(e) => setBoardCount(Number(e.target.value))}
-                            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-slate-900 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700">Anzahl Dartboards</label>
+                        <select value={boardCount} onChange={(e) => setBoardCount(Number(e.target.value))}
+                            className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500"
                         >
                             <option value={1}>1 Board</option>
                             <option value={2}>2 Boards (Parallel)</option>
                         </select>
                     </div>
-
-                    <div className="space-y-2">
-                        <label className="text-sm font-semibold text-slate-700">Turniermodus</label>
-                        <select 
-                            value={tournamentMode} onChange={(e) => setTournamentMode(e.target.value)}
-                            className="w-full bg-slate-50 border border-slate-300 rounded-lg px-3 py-2 text-sm text-slate-900 focus:outline-none focus:border-blue-500 transition-colors cursor-pointer"
+                    <div className="space-y-1">
+                        <label className="text-xs font-semibold text-slate-700">Turniermodus</label>
+                        <select value={tournamentMode} onChange={(e) => setTournamentMode(e.target.value)}
+                            className="w-full bg-slate-50 border border-slate-300 rounded px-3 py-2 text-xs text-slate-900 focus:outline-none focus:border-blue-500"
                         >
-                            <option value="1_gruppe_elmenhorst">1 Gruppe + Elmenhorster Regel (Pl 1 im Finale, 2vs3 im HF)</option>
+                            <option value="1_gruppe_elmenhorst">1 Gruppe + Elmenhorster Regel (Pl 1 im Finale)</option>
                             <option value="1_gruppe_top4">1 Gruppe + Halbfinale (Top 4)</option>
-                            <option value="2_gruppen_kreuz">2 Gruppen + Halbfinale (1A vs 2B, 1B vs 2A)</option>
+                            <option value="2_gruppen_kreuz">2 Gruppen + Halbfinale</option>
                         </select>
                     </div>
                 </div>
-
-                {/* Start Button */}
                 <button 
-                    onClick={startTournament}
-                    disabled={isStartDisabled}
-                    className={`w-full flex items-center justify-center gap-3 font-bold text-lg py-4 rounded-xl shadow-lg transition-all 
-                    ${isStartDisabled 
-                        ? 'bg-slate-300 text-slate-500 cursor-not-allowed shadow-none' 
-                        : 'bg-blue-600 hover:bg-blue-700 text-white shadow-blue-600/20 active:scale-[0.99]'}`}
+                    onClick={startTournament} disabled={isStartDisabled}
+                    className={`w-full flex items-center justify-center gap-2 font-bold text-sm py-3 rounded-xl shadow-md transition-all 
+                    ${isStartDisabled ? 'bg-slate-300 text-slate-500 cursor-not-allowed' : 'bg-blue-600 hover:bg-blue-700 text-white active:scale-[0.99]'}`}
                 >
-                    <Icons.Play className="w-6 h-6 fill-current" />
-                    {isStartDisabled ? `Mindestens ${minPlayers} Teilnehmer` : 'Turnier starten'}
+                    <Icons.Play className="w-5 h-5 fill-current" />
+                    {isStartDisabled ? `Min. ${minPlayers} Teilnehmer` : 'Turnier starten'}
                 </button>
             </div>
 
             {/* COLUMN 2: Participants */}
-            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-2xl p-6 shadow-sm">
-              <label className="text-sm font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-6">
+            <div className="lg:col-span-2 bg-white border border-slate-200 rounded-xl p-5 shadow-sm">
+              <label className="text-xs font-bold text-slate-500 uppercase tracking-wider flex items-center gap-2 mb-4">
                 <Icons.Users className="w-4 h-4" /> Teilnehmer ({participants.length})
               </label>
-              
-              <div className="space-y-3">
+              <div className="space-y-2">
                 {participants.map((p: any, idx: number) => (
-                  <div key={p.id} className="flex flex-col md:flex-row gap-3 bg-slate-50 p-3 rounded-xl border border-slate-200 relative pr-12 md:pr-14">
-                    <div className="flex items-center gap-3 md:w-1/3">
-                        <div className="flex-none w-8 h-8 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-sm">
+                  <div key={p.id} className="flex flex-col md:flex-row gap-2 bg-slate-50 p-2 rounded-lg border border-slate-200 relative pr-10">
+                    <div className="flex items-center gap-2 md:w-1/3">
+                        <div className="flex-none w-6 h-6 bg-blue-100 text-blue-700 rounded-full flex items-center justify-center font-bold text-xs">
                             {idx + 1}
                         </div>
-                        <input 
-                            type="text" value={p.name} onChange={(e) => updateParticipant(p.id, 'name', e.target.value)}
-                            className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 focus:outline-none focus:border-blue-500 transition-colors font-semibold"
+                        <input type="text" value={p.name} onChange={(e) => updateParticipant(p.id, 'name', e.target.value)}
+                            className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-sm focus:outline-none focus:border-blue-500 font-semibold"
                             placeholder={tourneyType === 'single' ? "Spielername" : "Team Name"}
                         />
                     </div>
-                    
                     {tourneyType === 'team' && (
                         <>
-                        <div className="flex items-center gap-2 md:w-1/3">
-                            <Icons.User className="w-4 h-4 text-slate-400 flex-none" />
-                            <input 
-                                type="text" value={p.p1} onChange={(e) => updateParticipant(p.id, 'p1', e.target.value)}
-                                className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                                placeholder="Spieler 1"
-                            />
+                        <div className="flex items-center gap-1 md:w-1/3">
+                            <Icons.User className="w-3 h-3 text-slate-400 flex-none" />
+                            <input type="text" value={p.p1} onChange={(e) => updateParticipant(p.id, 'p1', e.target.value)}
+                                className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-blue-500"
+                                placeholder="Spieler 1" />
                         </div>
-                        <div className="flex items-center gap-2 md:w-1/3">
-                            <Icons.User className="w-4 h-4 text-slate-400 flex-none" />
-                            <input 
-                                type="text" value={p.p2} onChange={(e) => updateParticipant(p.id, 'p2', e.target.value)}
-                                className="w-full bg-white border border-slate-300 rounded-md px-3 py-2 text-sm focus:outline-none focus:border-blue-500 transition-colors"
-                                placeholder="Spieler 2"
-                            />
+                        <div className="flex items-center gap-1 md:w-1/3">
+                            <Icons.User className="w-3 h-3 text-slate-400 flex-none" />
+                            <input type="text" value={p.p2} onChange={(e) => updateParticipant(p.id, 'p2', e.target.value)}
+                                className="w-full bg-white border border-slate-300 rounded px-2 py-1 text-xs focus:outline-none focus:border-blue-500"
+                                placeholder="Spieler 2" />
                         </div>
                         </>
                     )}
-
-                    <button 
-                        onClick={() => removeParticipant(p.id)}
-                        className="absolute right-3 top-1/2 -translate-y-1/2 p-2 text-rose-500 hover:bg-rose-50 rounded-md transition-colors"
-                        title="Entfernen"
+                    <button onClick={() => removeParticipant(p.id)}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 p-1.5 text-rose-500 hover:bg-rose-100 rounded transition-colors"
                     >
                         <Icons.Trash2 className="w-4 h-4" />
                     </button>
                   </div>
                 ))}
               </div>
-
-              <button 
-                onClick={addParticipant}
-                className="mt-6 flex items-center gap-2 text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold px-4 py-2 rounded-lg transition-colors border border-transparent hover:border-blue-100"
+              <button onClick={addParticipant}
+                className="mt-4 flex items-center gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50 font-semibold text-sm px-3 py-1.5 rounded transition-colors"
               >
-                <Icons.Plus className="w-4 h-4" /> {tourneyType === 'single' ? 'Weiteren Spieler hinzufügen' : 'Weiteres Team hinzufügen'}
+                <Icons.Plus className="w-4 h-4" /> Hinzufügen
               </button>
             </div>
-
           </div>
         </div>
       </div>
     );
   }
 
-  const renderTable = (groupTable: any[], title: string, showGroupBadge: boolean = false) => (
-    <div className="bg-white border border-slate-200 rounded-2xl overflow-hidden shadow-sm">
-        <div className="p-4 border-b border-slate-100 bg-slate-50 flex items-center gap-3">
-            <h2 className="text-xl font-extrabold text-slate-900">{title}</h2>
-            {showGroupBadge && <span className="bg-blue-100 text-blue-700 text-xs font-bold px-2 py-1 rounded">Gruppe {title.slice(-1)}</span>}
+  const renderTable = (groupTable: any[], title: string, showGroupBadge: boolean = false) => {
+    
+    // Logic for coloring rows green (advancing) or red (eliminated)
+    const getRowBgColor = (idx: number) => {
+        if (tournamentMode === '1_gruppe_elmenhorst') {
+            return idx < 3 ? 'bg-green-50' : 'bg-red-50'; // Top 3 advance
+        }
+        if (tournamentMode === '1_gruppe_top4') {
+            return idx < 4 ? 'bg-green-50' : 'bg-red-50'; // Top 4 advance
+        }
+        if (tournamentMode === '2_gruppen_kreuz') {
+            return idx < 2 ? 'bg-green-50' : 'bg-red-50'; // Top 2 from each group advance
+        }
+        return 'bg-white';
+    };
+
+    return (
+        <div className="bg-white border border-slate-200 rounded-lg overflow-hidden shadow-sm flex flex-col h-full">
+            <div className="px-2 py-1.5 border-b border-slate-200 bg-slate-100 flex justify-between items-center shrink-0">
+                <h2 className="text-sm font-extrabold text-slate-800">{title}</h2>
+                {showGroupBadge && <span className="bg-indigo-100 text-indigo-700 text-[10px] font-bold px-1.5 py-0.5 rounded">Grp {title.slice(-1)}</span>}
+            </div>
+            <div className="overflow-x-auto flex-1">
+                <table className="w-full text-left border-collapse">
+                <thead>
+                    <tr className="bg-white border-b border-slate-200 text-slate-500 text-[10px] uppercase tracking-wider">
+                    <th className="px-1 py-1 font-bold text-center w-8">Pl</th>
+                    <th className="px-1 py-1 font-bold">{tourneyType === 'single' ? 'Spieler' : 'Team'}</th>
+                    <th className="px-1 py-1 font-bold text-center">Sp</th>
+                    <th className="px-1 py-1 font-bold text-center">Legs</th>
+                    <th className="px-1 py-1 font-bold text-center text-blue-600">Diff</th>
+                    </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-100 text-xs">
+                    {groupTable.map((team: any, idx: number) => (
+                    <tr key={team.id} className={`${getRowBgColor(idx)} transition-colors`}>
+                        <td className="px-1 py-1">
+                        <div className={`w-5 h-5 mx-auto rounded-full flex items-center justify-center font-bold text-[10px]
+                            ${idx === 0 ? 'bg-amber-100 text-amber-700' : 
+                            idx === 1 ? 'bg-slate-200 text-slate-700' : 
+                            idx === 2 ? 'bg-orange-100 text-orange-700' : 'bg-transparent text-slate-500'}`}>
+                            {idx + 1}
+                        </div>
+                        </td>
+                        <td className="px-1 py-1 truncate max-w-[100px]">
+                        <div className="font-bold text-slate-900 truncate">{team.name}</div>
+                        {tourneyType === 'team' && <div className="text-[9px] text-slate-500 truncate">{team.p1} & {team.p2}</div>}
+                        </td>
+                        <td className="px-1 py-1 text-center font-medium text-slate-700">{team.played}</td>
+                        <td className="px-1 py-1 text-center font-medium text-slate-700 whitespace-nowrap">{team.legsFor}:{team.legsAgainst}</td>
+                        <td className="px-1 py-1 text-center font-extrabold text-blue-600">
+                        {team.legDiff > 0 ? `+${team.legDiff}` : team.legDiff}
+                        </td>
+                    </tr>
+                    ))}
+                </tbody>
+                </table>
+            </div>
         </div>
-        <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse">
-            <thead>
-                <tr className="bg-white border-b border-slate-200 text-slate-500 text-xs uppercase tracking-wider">
-                <th className="p-3 font-bold w-12 text-center">Pl</th>
-                <th className="p-3 font-bold">{tourneyType === 'single' ? 'Spieler' : 'Team'}</th>
-                <th className="p-3 font-bold text-center">Sp</th>
-                <th className="p-3 font-bold text-center">Legs</th>
-                <th className="p-3 font-bold text-center text-blue-600">Diff</th>
-                </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 text-sm">
-                {groupTable.map((team: any, idx: number) => (
-                <tr key={team.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3">
-                    <div className={`w-7 h-7 mx-auto rounded-full flex items-center justify-center font-bold text-xs
-                        ${idx === 0 ? 'bg-amber-100 text-amber-700' : 
-                        idx === 1 ? 'bg-slate-200 text-slate-700' : 
-                        idx === 2 ? 'bg-orange-100 text-orange-700' : 'bg-transparent text-slate-400'}`}>
-                        {idx + 1}
-                    </div>
-                    </td>
-                    <td className="p-3">
-                    <div className="font-bold text-slate-900">{team.name}</div>
-                    {tourneyType === 'team' && <div className="text-[10px] text-slate-500">{team.p1} & {team.p2}</div>}
-                    </td>
-                    <td className="p-3 text-center font-medium text-slate-700">{team.played}</td>
-                    <td className="p-3 text-center font-medium text-slate-700">{team.legsFor}:{team.legsAgainst}</td>
-                    <td className="p-3 text-center font-extrabold text-blue-600">
-                    {team.legDiff > 0 ? `+${team.legDiff}` : team.legDiff}
-                    </td>
-                </tr>
-                ))}
-            </tbody>
-            </table>
-        </div>
-    </div>
-  );
+    );
+  };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800 font-sans p-4 md:p-8">
+    // NO SCROLL on main container for TV layout
+    <div className="h-screen w-full bg-slate-200 text-slate-800 font-sans p-2 flex flex-col overflow-hidden">
       
-      {/* Header */}
-      <header className="flex flex-col md:flex-row md:items-center justify-between mb-8 gap-4 bg-white p-6 rounded-2xl border border-slate-200 shadow-sm">
-        <div>
-          <h1 className="text-3xl font-bold text-slate-900 flex items-center gap-3">
-            <Icons.Trophy className="text-blue-600 w-8 h-8" />
-            {tournamentName}
-          </h1>
-          <div className="flex gap-3 mt-2">
-            <span className="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-1 rounded border border-slate-200">
-               {tourneyType === 'single' ? 'Einzelspieler' : 'Teams'}
-            </span>
-            <span className="bg-slate-100 text-slate-600 text-xs font-bold px-2 py-1 rounded border border-slate-200">
-               {boardCount} {boardCount === 1 ? 'Board' : 'Boards'}
-            </span>
-          </div>
-        </div>
-        <button 
-          onClick={() => setShowResetModal(true)}
-          className="flex items-center gap-2 text-slate-600 hover:text-slate-900 px-4 py-2 bg-slate-100 hover:bg-slate-200 rounded-lg transition-colors font-semibold"
-        >
-          <Icons.RotateCcw className="w-4 h-4" /> Setup & Reset
-        </button>
-      </header>
-
       {/* Reset Modal */}
       {showResetModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white p-6 rounded-2xl max-w-sm w-full shadow-2xl border border-slate-200">
-            <h3 className="text-xl font-bold text-slate-900 mb-2">Turnier zurücksetzen?</h3>
-            <p className="text-slate-500 mb-6 leading-relaxed">
-              Bist du sicher? Alle bisherigen Spielergebnisse gehen unwiderruflich verloren.
-            </p>
-            <div className="flex justify-end gap-3">
-              <button onClick={() => setShowResetModal(false)} className="px-4 py-2 text-slate-600 bg-slate-100 hover:bg-slate-200 font-semibold rounded-lg transition-colors">Abbrechen</button>
-              <button onClick={confirmReset} className="px-4 py-2 bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded-lg transition-colors">Ja, zurücksetzen</button>
+        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white p-5 rounded-xl max-w-sm w-full shadow-2xl border border-slate-200">
+            <h3 className="text-lg font-bold text-slate-900 mb-2">Turnier zurücksetzen?</h3>
+            <p className="text-sm text-slate-500 mb-5">Alle bisherigen Spielergebnisse gehen verloren.</p>
+            <div className="flex justify-end gap-2">
+              <button onClick={() => setShowResetModal(false)} className="px-3 py-1.5 text-sm text-slate-600 bg-slate-100 hover:bg-slate-200 font-semibold rounded transition-colors">Abbrechen</button>
+              <button onClick={confirmReset} className="px-3 py-1.5 text-sm bg-rose-600 hover:bg-rose-700 text-white font-semibold rounded transition-colors">Ja, Reset</button>
             </div>
           </div>
         </div>
       )}
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Header - Compact */}
+      <header className="shrink-0 flex items-center justify-between bg-white px-3 py-2 rounded-lg border border-slate-300 shadow-sm mb-2 gap-4">
+        <div className="flex items-center gap-3">
+          <Icons.Trophy className="text-blue-600 w-6 h-6 flex-none" />
+          <div className="flex flex-col">
+            <h1 className="text-lg font-bold text-slate-900 leading-tight">{tournamentName}</h1>
+            {additionalInfo && (
+              <div className="flex items-center gap-1 text-[10px] text-slate-500 font-medium">
+                <Icons.Info className="w-3 h-3" /> {additionalInfo}
+              </div>
+            )}
+          </div>
+        </div>
+        <div className="flex gap-2 items-center">
+            <div className="hidden sm:flex gap-1 mr-2">
+                <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-200">
+                    {tourneyType === 'single' ? 'Einzel' : 'Teams'}
+                </span>
+                <span className="bg-slate-100 text-slate-500 text-[10px] font-bold px-1.5 py-0.5 rounded border border-slate-200">
+                    {boardCount} Board(s)
+                </span>
+            </div>
+            <button onClick={() => setShowResetModal(true)}
+                className="flex items-center gap-1 text-slate-500 hover:text-slate-900 px-2 py-1 bg-slate-100 hover:bg-slate-200 rounded text-xs font-semibold transition-colors"
+            >
+                <Icons.RotateCcw className="w-3 h-3" /> Setup
+            </button>
+        </div>
+      </header>
+
+      {/* MAIN GRID - 3 Columns ensuring it fits the screen */}
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-3 gap-2">
         
-        {/* AREA A: Spielplan */}
-        <div className="lg:col-span-1 space-y-4">
-          <h2 className="text-xl font-extrabold text-slate-900 flex items-center gap-2 mb-4">
-             Spielplan (Vorrunde)
+        {/* COLUMN 1: Matches (Scrollable if needed) */}
+        <div className="flex flex-col h-full overflow-hidden bg-slate-100 rounded-lg p-1 border border-slate-300">
+          <h2 className="text-xs font-extrabold text-slate-800 p-1 mb-1 shrink-0 flex items-center gap-1">
+             <Icons.Target className="w-3 h-3" /> Spielplan (Vorrunde)
           </h2>
-          <div className="space-y-3 max-h-[75vh] overflow-y-auto pr-2 custom-scrollbar">
+          <div className="flex-1 overflow-y-auto custom-scrollbar pr-1 flex flex-col gap-1">
             {leagueMatches.map((match: any, i: number) => {
               const teamA = participants.find((t: any) => t.id === match.teamAId);
               const teamB = participants.find((t: any) => t.id === match.teamBId);
+              // Alternating row colors for matches
+              const bgClass = i % 2 === 0 ? 'bg-white' : 'bg-slate-50';
+
               return (
-                <div key={match.id} className="bg-white border border-slate-200 p-4 rounded-xl flex flex-col gap-3 shadow-sm hover:shadow-md transition-shadow relative">
-                  
-                  <div className="flex justify-between items-center mb-1">
-                     <div className="text-[10px] font-bold uppercase tracking-wider bg-slate-100 text-slate-500 px-2 py-0.5 rounded">
-                        Spiel {i + 1}
-                     </div>
-                     <div className="flex gap-2">
+                <div key={match.id} className={`${bgClass} border border-slate-200 p-1.5 rounded flex flex-col gap-1 shadow-sm`}>
+                  <div className="flex justify-between items-center px-1">
+                     <span className="text-[9px] font-bold uppercase tracking-wider text-slate-400">Spiel {i + 1}</span>
+                     <div className="flex gap-1">
                         {tournamentMode === '2_gruppen_kreuz' && (
-                            <div className="text-[10px] font-bold uppercase tracking-wider bg-indigo-50 text-indigo-600 px-2 py-0.5 rounded">
-                                Grp {match.group}
-                            </div>
+                            <span className="text-[9px] font-bold uppercase bg-indigo-50 text-indigo-600 px-1 rounded">Grp {match.group}</span>
                         )}
                         {boardCount === 2 && (
-                            <div className="text-[10px] font-bold uppercase tracking-wider bg-blue-50 text-blue-600 px-2 py-0.5 rounded flex items-center gap-1">
-                                <Icons.Target className="w-3 h-3" /> Board {match.board}
-                            </div>
+                            <span className="text-[9px] font-bold uppercase bg-blue-50 text-blue-600 px-1 rounded flex items-center gap-0.5">
+                                Board {match.board}
+                            </span>
                         )}
                      </div>
                   </div>
-
-                  <div className="flex items-center justify-between gap-2">
-                    <div className="flex-1 text-right">
-                        <div className="font-bold text-slate-900 truncate text-sm md:text-base">{teamA?.name}</div>
-                        {tourneyType === 'team' && <div className="text-[10px] text-slate-500 truncate">{teamA?.p1} & {teamA?.p2}</div>}
+                  <div className="flex items-center justify-between gap-1">
+                    <div className="flex-1 text-right truncate">
+                        <div className="font-bold text-slate-800 text-xs truncate">{teamA?.name}</div>
                     </div>
-                    
-                    <div className="flex items-center gap-1 shrink-0 bg-slate-50 p-1 rounded-lg border border-slate-200">
-                      <input 
-                        type="number" min="0" 
-                        value={match.scoreA} onChange={(e) => updateLeagueScore(match.id, 'scoreA', e.target.value)}
-                        className="w-10 h-10 bg-white border border-slate-300 rounded text-center text-lg font-extrabold text-blue-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                    <div className="flex items-center gap-0.5 shrink-0 px-1">
+                      <input type="number" min="0" value={match.scoreA} onChange={(e) => updateLeagueScore(match.id, 'scoreA', e.target.value)}
+                        className="w-8 h-6 bg-white border border-slate-300 rounded text-center text-xs font-bold text-blue-700 focus:outline-none focus:border-blue-500"
                       />
-                      <span className="text-slate-400 font-bold">:</span>
-                      <input 
-                        type="number" min="0" 
-                        value={match.scoreB} onChange={(e) => updateLeagueScore(match.id, 'scoreB', e.target.value)}
-                        className="w-10 h-10 bg-white border border-slate-300 rounded text-center text-lg font-extrabold text-blue-700 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500"
+                      <span className="text-slate-400 font-bold text-xs">:</span>
+                      <input type="number" min="0" value={match.scoreB} onChange={(e) => updateLeagueScore(match.id, 'scoreB', e.target.value)}
+                        className="w-8 h-6 bg-white border border-slate-300 rounded text-center text-xs font-bold text-blue-700 focus:outline-none focus:border-blue-500"
                       />
                     </div>
-
-                    <div className="flex-1 text-left">
-                        <div className="font-bold text-slate-900 truncate text-sm md:text-base">{teamB?.name}</div>
-                        {tourneyType === 'team' && <div className="text-[10px] text-slate-500 truncate">{teamB?.p1} & {teamB?.p2}</div>}
+                    <div className="flex-1 text-left truncate">
+                        <div className="font-bold text-slate-800 text-xs truncate">{teamB?.name}</div>
                     </div>
                   </div>
                 </div>
@@ -522,74 +508,71 @@ export default function App() {
           </div>
         </div>
 
-        {/* AREA B: Live Tabelle & Bracket */}
-        <div className="lg:col-span-2 space-y-8">
-          
-          {/* Tabellen */}
-          {tournamentMode === '2_gruppen_kreuz' ? (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                  {renderTable(tableA, 'Live-Tabelle A', true)}
-                  {renderTable(tableB, 'Live-Tabelle B', true)}
-              </div>
+        {/* COLUMN 2: Tables */}
+        <div className="flex flex-col h-full overflow-hidden bg-slate-100 rounded-lg p-1 border border-slate-300 gap-1">
+           {tournamentMode === '2_gruppen_kreuz' ? (
+              <>
+                  <div className="flex-1 overflow-hidden">{renderTable(tableA, 'Tabelle A', true)}</div>
+                  <div className="flex-1 overflow-hidden">{renderTable(tableB, 'Tabelle B', true)}</div>
+              </>
           ) : (
-              renderTable(tableA, 'Live-Tabelle')
+              <div className="flex-1 overflow-hidden">{renderTable(tableA, 'Live-Tabelle')}</div>
           )}
+        </div>
 
-          {/* Turnierbaum (Dynamisch je nach Modus) */}
-          {participants.length >= 3 && (
-            <div className="bg-white border border-slate-200 rounded-2xl p-6 shadow-sm overflow-x-auto">
-              <h2 className="text-xl font-extrabold text-slate-900 mb-6 flex items-center gap-2">
-                 <Icons.Swords className="w-5 h-5 text-slate-500" /> K.O. Runde
-              </h2>
-              
-              <div className="min-w-[600px] flex justify-between gap-6 items-center">
-                
-                {/* --- HALBFINALS --- */}
-                <div className="flex-1 space-y-6">
+        {/* COLUMN 3: Bracket */}
+        <div className="flex flex-col h-full overflow-hidden bg-slate-100 rounded-lg p-1 border border-slate-300">
+          <h2 className="text-xs font-extrabold text-slate-800 p-1 mb-1 shrink-0 flex items-center gap-1">
+             <Icons.Swords className="w-3 h-3" /> K.O. Runde
+          </h2>
+          <div className="flex-1 bg-white border border-slate-200 rounded-lg p-2 overflow-hidden flex flex-col justify-around">
+            
+            {participants.length >= 3 && (
+                <>
+                {/* SEMI FINALS */}
+                <div className="space-y-2">
                   
                   {tournamentMode === '1_gruppe_elmenhorst' && (
-                     <div className="pt-10 pb-10">
-                        <h3 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Halbfinale (Platz 2 vs 3)</h3>
+                     <div className="px-4">
+                        <h3 className="text-[9px] text-slate-400 font-bold uppercase text-center mb-1">Halbfinale (2. vs 3.)</h3>
                         <MatchCard teamA={tableA[1]} teamB={tableA[2]} matchData={koMatches.sf2} matchKey="sf2" updateScore={updateKoScore} />
                      </div>
                   )}
 
                   {tournamentMode === '1_gruppe_top4' && (
-                     <>
-                        <div>
-                            <h3 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Halbfinale 1 (1. vs 4.)</h3>
+                     <div className="flex gap-2">
+                        <div className="flex-1">
+                            <h3 className="text-[9px] text-slate-400 font-bold uppercase text-center mb-1">HF 1 (1. vs 4.)</h3>
                             <MatchCard teamA={tableA[0]} teamB={tableA[3]} matchData={koMatches.sf1} matchKey="sf1" updateScore={updateKoScore} />
                         </div>
-                        <div>
-                            <h3 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Halbfinale 2 (2. vs 3.)</h3>
+                        <div className="flex-1">
+                            <h3 className="text-[9px] text-slate-400 font-bold uppercase text-center mb-1">HF 2 (2. vs 3.)</h3>
                             <MatchCard teamA={tableA[1]} teamB={tableA[2]} matchData={koMatches.sf2} matchKey="sf2" updateScore={updateKoScore} />
                         </div>
-                     </>
+                     </div>
                   )}
 
                   {tournamentMode === '2_gruppen_kreuz' && (
-                     <>
-                        <div>
-                            <h3 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Halbfinale 1 (1. Grp A vs 2. Grp B)</h3>
+                     <div className="flex gap-2">
+                        <div className="flex-1">
+                            <h3 className="text-[9px] text-slate-400 font-bold uppercase text-center mb-1">HF 1 (1A vs 2B)</h3>
                             <MatchCard teamA={tableA[0]} teamB={tableB[1]} matchData={koMatches.sf1} matchKey="sf1" updateScore={updateKoScore} />
                         </div>
-                        <div>
-                            <h3 className="text-[10px] text-slate-400 font-bold uppercase tracking-widest text-center mb-2">Halbfinale 2 (1. Grp B vs 2. Grp A)</h3>
+                        <div className="flex-1">
+                            <h3 className="text-[9px] text-slate-400 font-bold uppercase text-center mb-1">HF 2 (1B vs 2A)</h3>
                             <MatchCard teamA={tableB[0]} teamB={tableA[1]} matchData={koMatches.sf2} matchKey="sf2" updateScore={updateKoScore} />
                         </div>
-                     </>
+                     </div>
                   )}
-
                 </div>
 
-                {/* Connector */}
-                <div className="flex flex-col justify-center items-center px-4">
-                  <Icons.ChevronRight className="w-8 h-8 text-slate-300" />
+                <div className="flex justify-center shrink-0 my-1">
+                  <Icons.ChevronRight className="w-5 h-5 text-slate-300 transform rotate-90" />
                 </div>
 
-                {/* --- FINALE --- */}
-                <div className="flex-1">
-                   <h3 className="text-[10px] text-amber-500 font-bold uppercase tracking-widest text-center mb-2">Finale</h3>
+                {/* FINAL */}
+                <div className="px-4">
+                   <h3 className="text-[10px] text-amber-500 font-bold uppercase text-center mb-1">Finale</h3>
                    
                    {tournamentMode === '1_gruppe_elmenhorst' && (
                        <MatchCard 
@@ -603,29 +586,28 @@ export default function App() {
                        <MatchCard 
                           teamA={
                             getWinner(koMatches.sf1, tournamentMode === '1_gruppe_top4' ? tableA[0] : tableA[0], tournamentMode === '1_gruppe_top4' ? tableA[3] : tableB[1]) 
-                            || { name: 'Sieger HF1' }
+                            || { name: 'Sieger HF 1' }
                           } 
                           teamB={
                             getWinner(koMatches.sf2, tournamentMode === '1_gruppe_top4' ? tableA[1] : tableB[0], tournamentMode === '1_gruppe_top4' ? tableA[2] : tableA[1]) 
-                            || { name: 'Sieger HF2' }
+                            || { name: 'Sieger HF 2' }
                           }
                           matchData={koMatches.final} matchKey="final" updateScore={updateKoScore} isFinal={true}
                        />
                    )}
                 </div>
-
-              </div>
-            </div>
-          )}
-
+                </>
+            )}
+          </div>
         </div>
+
       </div>
       
       {/* Scrollbar Styles */}
       <style dangerouslySetInnerHTML={{__html: `
-        .custom-scrollbar::-webkit-scrollbar { width: 6px; }
+        .custom-scrollbar::-webkit-scrollbar { width: 4px; }
         .custom-scrollbar::-webkit-scrollbar-track { background: transparent; }
-        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 10px; }
+        .custom-scrollbar::-webkit-scrollbar-thumb { background-color: #cbd5e1; border-radius: 4px; }
         .custom-scrollbar::-webkit-scrollbar-thumb:hover { background-color: #94a3b8; }
       `}} />
     </div>
@@ -634,31 +616,23 @@ export default function App() {
 
 function MatchCard({ teamA, teamB, matchData, matchKey, updateScore, isFinal }: any) {
   return (
-    <div className={`bg-white border-2 ${isFinal ? 'border-amber-300 shadow-md shadow-amber-100' : 'border-slate-200'} rounded-xl p-3 shadow-sm relative`}>
-      <div className="space-y-2">
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-            <div className={`font-bold truncate text-sm ${teamA?.id ? 'text-slate-900' : 'text-slate-400 italic'}`}>
-                {teamA?.name || 'TBD'}
-            </div>
+    <div className={`bg-slate-50 border ${isFinal ? 'border-amber-300 shadow-sm shadow-amber-100' : 'border-slate-200'} rounded p-1.5`}>
+      <div className="flex flex-col gap-1">
+        <div className="flex items-center justify-between gap-1">
+          <div className={`font-bold truncate text-[11px] ${teamA?.id ? 'text-slate-900' : 'text-slate-400 italic'}`}>
+              {teamA?.name || 'TBD'}
           </div>
-          <input 
-            type="number" min="0" 
-            disabled={!teamA?.id} value={matchData.scoreA} onChange={(e) => updateScore(matchKey, 'scoreA', e.target.value)}
-            className="w-10 h-8 bg-slate-50 border border-slate-300 rounded text-center text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+          <input type="number" min="0" disabled={!teamA?.id} value={matchData.scoreA} onChange={(e) => updateScore(matchKey, 'scoreA', e.target.value)}
+            className="w-8 h-6 bg-white border border-slate-300 rounded text-center text-[11px] font-bold text-slate-900 focus:outline-none focus:border-blue-500 disabled:opacity-50"
           />
         </div>
-        <div className="h-px w-full bg-slate-100"></div>
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex-1 min-w-0">
-             <div className={`font-bold truncate text-sm ${teamB?.id ? 'text-slate-900' : 'text-slate-400 italic'}`}>
-                {teamB?.name || 'TBD'}
-            </div>
+        <div className="h-px w-full bg-slate-200"></div>
+        <div className="flex items-center justify-between gap-1">
+          <div className={`font-bold truncate text-[11px] ${teamB?.id ? 'text-slate-900' : 'text-slate-400 italic'}`}>
+              {teamB?.name || 'TBD'}
           </div>
-          <input 
-            type="number" min="0" 
-            disabled={!teamB?.id} value={matchData.scoreB} onChange={(e) => updateScore(matchKey, 'scoreB', e.target.value)}
-            className="w-10 h-8 bg-slate-50 border border-slate-300 rounded text-center text-sm font-bold text-slate-900 focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-50"
+          <input type="number" min="0" disabled={!teamB?.id} value={matchData.scoreB} onChange={(e) => updateScore(matchKey, 'scoreB', e.target.value)}
+            className="w-8 h-6 bg-white border border-slate-300 rounded text-center text-[11px] font-bold text-slate-900 focus:outline-none focus:border-blue-500 disabled:opacity-50"
           />
         </div>
       </div>
