@@ -30,7 +30,7 @@ export default function App() {
 
   // LocalStorage Laden
   useEffect(() => {
-    const saved = localStorage.getItem('dartsApp_v5');
+    const saved = localStorage.getItem('dartsApp_v6');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -46,7 +46,7 @@ export default function App() {
 
   // LocalStorage Speichern
   useEffect(() => {
-    localStorage.setItem('dartsApp_v5', JSON.stringify({ isStarted, config, teams, matches }));
+    localStorage.setItem('dartsApp_v6', JSON.stringify({ isStarted, config, teams, matches }));
   }, [isStarted, config, teams, matches]);
 
   // --- LOGIK ---
@@ -56,7 +56,7 @@ export default function App() {
       return;
     }
     
-    // Richtiges Turnier-System (Round-Robin / Circle Method) für ausgewogene Spielpausen
+    // 1. Richtiges Turnier-System (Round-Robin / Circle Method) für ausgewogene Spielpausen
     let matchPool = [];
     let numTeams = teams.length;
     let playTeams = [...teams];
@@ -80,26 +80,57 @@ export default function App() {
           matchPool.push({ team1Id: t1.id, team2Id: t2.id });
         }
       }
-      
-      // Teams im Kreis rotieren (Team 0 bleibt fest, der Rest rückt auf)
+      // Teams im Kreis rotieren
       const last = playTeams.pop();
       playTeams.splice(1, 0, last);
     }
     
-    // Matches den Boards zuweisen und Nummerieren
+    // 2. Intelligente Board-Zuweisung (Faires Ausbalancieren pro Team)
     let newMatches = [];
-    let boardCounts = Array(config.boards + 1).fill(1); // Zähler pro Board
+    let boardCounts = Array(config.boards + 1).fill(1); // Zähler für die Nummerierung pro Board
     
+    // Tracking, wie oft jedes Team auf welchem Board gespielt hat
+    let teamBoardUsage = {};
+    teams.forEach(t => {
+      teamBoardUsage[t.id] = Array(config.boards + 1).fill(0);
+    });
+    let globalBoardUsage = Array(config.boards + 1).fill(0);
+
     matchPool.forEach((match, index) => {
-      const boardNum = (index % config.boards) + 1;
+      let assignedBoard = 1;
+
+      if (config.boards > 1) {
+        let bestBoard = 1;
+        let minCost = Infinity;
+
+        // Finde das Board, das für beide Teams bisher am wenigsten genutzt wurde
+        for (let b = 1; b <= config.boards; b++) {
+          let cost = teamBoardUsage[match.team1Id][b] + teamBoardUsage[match.team2Id][b];
+          
+          // Bei Gleichstand: Nimm das Board, das insgesamt weniger Spiele hat
+          if (cost < minCost || (cost === minCost && globalBoardUsage[b] < globalBoardUsage[bestBoard])) {
+            minCost = cost;
+            bestBoard = b;
+          }
+        }
+        assignedBoard = bestBoard;
+      }
+
+      // Usage Zähler updaten
+      if (config.boards > 1) {
+        teamBoardUsage[match.team1Id][assignedBoard]++;
+        teamBoardUsage[match.team2Id][assignedBoard]++;
+        globalBoardUsage[assignedBoard]++;
+      }
+
       newMatches.push({
         id: `m${index + 1}`,
         team1Id: match.team1Id,
         team2Id: match.team2Id,
         score1: '',
         score2: '',
-        board: boardNum,
-        matchNumBoard: boardCounts[boardNum]++
+        board: assignedBoard,
+        matchNumBoard: boardCounts[assignedBoard]++
       });
     });
     
