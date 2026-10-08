@@ -30,7 +30,7 @@ export default function App() {
 
   // LocalStorage Laden
   useEffect(() => {
-    const saved = localStorage.getItem('dartsApp_v4');
+    const saved = localStorage.getItem('dartsApp_v5');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -46,7 +46,7 @@ export default function App() {
 
   // LocalStorage Speichern
   useEffect(() => {
-    localStorage.setItem('dartsApp_v4', JSON.stringify({ isStarted, config, teams, matches }));
+    localStorage.setItem('dartsApp_v5', JSON.stringify({ isStarted, config, teams, matches }));
   }, [isStarted, config, teams, matches]);
 
   // --- LOGIK ---
@@ -56,22 +56,53 @@ export default function App() {
       return;
     }
     
-    let newMatches = [];
-    let matchId = 1;
+    // Richtiges Turnier-System (Round-Robin / Circle Method) für ausgewogene Spielpausen
+    let matchPool = [];
+    let numTeams = teams.length;
+    let playTeams = [...teams];
     
-    for (let i = 0; i < teams.length; i++) {
-      for (let j = i + 1; j < teams.length; j++) {
-        newMatches.push({
-          id: `m${matchId}`,
-          team1Id: teams[i].id,
-          team2Id: teams[j].id,
-          score1: '',
-          score2: '',
-          board: (matchId % config.boards === 0) ? config.boards : (matchId % config.boards)
-        });
-        matchId++;
-      }
+    // Wenn ungerade, ein Dummy-Team für "Freilos" (Bye) hinzufügen
+    if (numTeams % 2 !== 0) {
+      playTeams.push({ id: 'bye', name: 'BYE' });
+      numTeams++;
     }
+    
+    let rounds = numTeams - 1;
+    let half = numTeams / 2;
+    
+    for (let round = 0; round < rounds; round++) {
+      for (let i = 0; i < half; i++) {
+        let t1 = playTeams[i];
+        let t2 = playTeams[numTeams - 1 - i];
+        
+        // Match hinzufügen, wenn kein Freilos dabei ist
+        if (t1.id !== 'bye' && t2.id !== 'bye') {
+          matchPool.push({ team1Id: t1.id, team2Id: t2.id });
+        }
+      }
+      
+      // Teams im Kreis rotieren (Team 0 bleibt fest, der Rest rückt auf)
+      const last = playTeams.pop();
+      playTeams.splice(1, 0, last);
+    }
+    
+    // Matches den Boards zuweisen und Nummerieren
+    let newMatches = [];
+    let boardCounts = Array(config.boards + 1).fill(1); // Zähler pro Board
+    
+    matchPool.forEach((match, index) => {
+      const boardNum = (index % config.boards) + 1;
+      newMatches.push({
+        id: `m${index + 1}`,
+        team1Id: match.team1Id,
+        team2Id: match.team2Id,
+        score1: '',
+        score2: '',
+        board: boardNum,
+        matchNumBoard: boardCounts[boardNum]++
+      });
+    });
+    
     setMatches(newMatches);
     setIsStarted(true);
   };
@@ -251,13 +282,20 @@ export default function App() {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50">
-                  {boardMatches.map((match) => {
+                  {boardMatches.map((match, idx) => {
                     const team1 = teams.find(t => t.id === match.team1Id);
                     const team2 = teams.find(t => t.id === match.team2Id);
                     const isPlayed = match.score1 !== '' && match.score2 !== '';
                     
                     return (
-                      <div key={match.id} className={`flex items-center justify-between p-3 rounded-lg border ${isPlayed ? 'bg-white border-slate-200 opacity-60' : 'bg-white border-blue-100 shadow-sm'}`}>
+                      <div key={match.id} className={`flex items-center justify-between p-2 rounded-lg border ${isPlayed ? 'bg-white border-slate-200 opacity-60' : 'bg-white border-blue-100 shadow-sm'}`}>
+                        
+                        {/* Spielnummer Anzeige */}
+                        <div className="flex-none w-10 text-center border-r border-slate-200 pr-2 mr-2">
+                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Spiel</div>
+                          <div className="text-sm font-black text-slate-700">{match.matchNumBoard || idx + 1}</div>
+                        </div>
+
                         <div className="flex-1 text-right pr-4">
                           <div className="font-bold text-slate-800 text-sm">{team1?.name}</div>
                           {config.art === 'team' && <div className="text-[10px] text-slate-500">{team1?.p1} & {team1?.p2}</div>}
