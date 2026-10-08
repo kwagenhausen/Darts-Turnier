@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-// --- Inline Icons (Keine externen Abhängigkeiten nötig) ---
+// --- Inline Icons ---
 const TrophyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>;
 const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
 const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
@@ -14,21 +14,23 @@ export default function App() {
   const [config, setConfig] = useState({
     name: 'Elmenhorster Darts Open',
     info: 'Game On! 301 Single Out.',
-    art: 'team', // 'team' oder 'einzel'
-    boards: 2,   // 1 oder 2
-    modus: 'elmenhorst', // 'elmenhorst', 'standard', 'zwei_gruppen'
+    art: 'team', 
+    boards: 2,   
+    modus: 'elmenhorst',
   });
   const [teams, setTeams] = useState([
     { id: 't1', name: '26er', p1: 'Lasse', p2: 'Lenny' },
     { id: 't2', name: 'Martial Darts', p1: 'Kevin', p2: 'Mats' },
     { id: 't3', name: 'The Darts Knights', p1: 'Veith', p2: 'Paddy' },
     { id: 't4', name: 'The Lucky Two', p1: 'Remi', p2: 'Jens' },
+    { id: 't5', name: 'Dart Vaders', p1: 'Luke', p2: 'Anakin' },
+    { id: 't6', name: 'Bullseye Bandits', p1: 'Robin', p2: 'Hood' },
   ]);
   const [matches, setMatches] = useState([]);
 
   // LocalStorage Laden
   useEffect(() => {
-    const saved = localStorage.getItem('dartsApp_v3');
+    const saved = localStorage.getItem('dartsApp_v4');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -44,7 +46,7 @@ export default function App() {
 
   // LocalStorage Speichern
   useEffect(() => {
-    localStorage.setItem('dartsApp_v3', JSON.stringify({ isStarted, config, teams, matches }));
+    localStorage.setItem('dartsApp_v4', JSON.stringify({ isStarted, config, teams, matches }));
   }, [isStarted, config, teams, matches]);
 
   // --- LOGIK ---
@@ -54,7 +56,6 @@ export default function App() {
       return;
     }
     
-    // Spielplan generieren (Jeder gegen Jeden für Gruppe 1)
     let newMatches = [];
     let matchId = 1;
     
@@ -66,7 +67,7 @@ export default function App() {
           team2Id: teams[j].id,
           score1: '',
           score2: '',
-          board: (matchId % config.boards === 0) ? config.boards : (matchId % config.boards) // Automatische Board-Zuweisung
+          board: (matchId % config.boards === 0) ? config.boards : (matchId % config.boards)
         });
         matchId++;
       }
@@ -76,7 +77,7 @@ export default function App() {
   };
 
   const handleReset = () => {
-    if (window.confirm("Turnier wirklich beenden? Alle Spielstände gehen verloren!")) {
+    if (window.confirm("Turnier wirklich beenden? Alle Spielstände der Vorrunde gehen verloren!")) {
       setIsStarted(false);
       setMatches([]);
     }
@@ -91,7 +92,6 @@ export default function App() {
     }));
   };
 
-  // Tabellenberechnung (Leg-Differenz)
   const getTable = () => {
     let table = teams.map(t => ({ id: t.id, name: t.name, games: 0, legsWon: 0, legsLost: 0, diff: 0 }));
     
@@ -116,12 +116,11 @@ export default function App() {
       }
     });
 
-    // Sortieren: Erst Differenz, dann gewonnene Legs
     return table.sort((a, b) => b.diff - a.diff || b.legsWon - a.legsWon);
   };
 
   const tableData = getTable();
-  const placesToAdvance = config.modus === 'elmenhorst' ? 3 : (config.modus === 'standard' ? 4 : 2);
+  const placesToAdvance = config.modus === 'elmenhorst' ? 3 : 4;
 
   // --- RENDER SETUP ---
   if (!isStarted) {
@@ -164,7 +163,7 @@ export default function App() {
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Turnier-Modus</label>
               <select value={config.modus} onChange={e => setConfig({...config, modus: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
                 <option value="elmenhorst">Liga + Elmenhorst-Regel (Platz 1 im Finale, 2 vs 3 im HF)</option>
-                <option value="standard">Liga + Standard Halbfinale (Top 4)</option>
+                <option value="standard">Liga + Standard Halbfinale (1. vs 4. / 2. vs 3.)</option>
               </select>
             </div>
           </div>
@@ -217,29 +216,6 @@ export default function App() {
 
   // --- RENDER TV DASHBOARD ---
   
-  // Hilfsfunktion für den K.O. Baum
-  const getBracketTeams = () => {
-    if (tableData.length < 3) return { f1: 'TBD', f2: 'TBD', hf1: 'TBD', hf2: 'TBD' };
-    
-    if (config.modus === 'elmenhorst') {
-      return {
-        f1: tableData[0].name,
-        hf1: tableData[1].name,
-        hf2: tableData[2].name,
-        f2: 'Sieger Halbfinale'
-      };
-    } else {
-      return {
-        hf1: tableData[0]?.name || '1.',
-        hf2: tableData[3]?.name || '4.',
-        hf3: tableData[1]?.name || '2.',
-        hf4: tableData[2]?.name || '3.',
-      };
-    }
-  };
-
-  const bracket = getBracketTeams();
-
   return (
     <div className="h-screen flex flex-col bg-slate-100 font-sans text-slate-800 overflow-hidden">
       {/* HEADER */}
@@ -261,7 +237,7 @@ export default function App() {
       {/* MAIN DASHBOARD CONTENT */}
       <main className="flex-1 flex gap-4 p-4 min-h-0">
         
-        {/* LInke Seite: Spielplan (1 oder 2 Boards) */}
+        {/* Linke Seite: Spielplan */}
         <div className="flex-[2] flex gap-4 min-h-0">
           {[...Array(config.boards)].map((_, boardIdx) => {
             const boardNum = boardIdx + 1;
@@ -275,13 +251,13 @@ export default function App() {
                 </div>
                 
                 <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50">
-                  {boardMatches.map((match, idx) => {
+                  {boardMatches.map((match) => {
                     const team1 = teams.find(t => t.id === match.team1Id);
                     const team2 = teams.find(t => t.id === match.team2Id);
                     const isPlayed = match.score1 !== '' && match.score2 !== '';
                     
                     return (
-                      <div key={match.id} className={`flex items-center justify-between p-3 rounded-lg border ${isPlayed ? 'bg-white border-slate-200 opacity-70' : 'bg-white border-blue-100 shadow-sm'}`}>
+                      <div key={match.id} className={`flex items-center justify-between p-3 rounded-lg border ${isPlayed ? 'bg-white border-slate-200 opacity-60' : 'bg-white border-blue-100 shadow-sm'}`}>
                         <div className="flex-1 text-right pr-4">
                           <div className="font-bold text-slate-800 text-sm">{team1?.name}</div>
                           {config.art === 'team' && <div className="text-[10px] text-slate-500">{team1?.p1} & {team1?.p2}</div>}
@@ -348,30 +324,46 @@ export default function App() {
             </div>
           </div>
 
-          {/* K.O. Baum (Kompakt) */}
+          {/* Live K.O. Baum */}
           <div className="flex-[2] flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-0">
             <div className="bg-slate-800 text-white py-2 px-4 flex-none">
-              <h2 className="font-bold uppercase tracking-wide text-sm">Finalrunde</h2>
+              <h2 className="font-bold uppercase tracking-wide text-sm">Live Finalrunde</h2>
             </div>
-            <div className="flex-1 p-4 bg-slate-50 overflow-y-auto flex flex-col justify-center gap-4">
+            <div className="flex-1 p-3 bg-slate-50 overflow-y-auto flex flex-col justify-center gap-2">
               
               {config.modus === 'elmenhorst' ? (
                 <>
-                  <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
-                    <div className="bg-slate-200 text-xs font-bold px-3 py-1 text-slate-600 text-center uppercase tracking-wide">Halbfinale</div>
-                    <div className="p-2 text-center text-sm font-bold text-slate-800 border-b border-slate-100 truncate">{bracket.hf1}</div>
-                    <div className="p-2 text-center text-sm font-bold text-slate-800 truncate">{bracket.hf2}</div>
+                  <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
+                    <div className="bg-slate-200 text-[10px] font-bold px-2 py-1 text-slate-600 text-center uppercase tracking-wide">Halbfinale</div>
+                    <div className="p-1.5 text-center text-sm font-bold text-slate-800 border-b border-slate-100 truncate">{tableData[1]?.name || '2. Platz'}</div>
+                    <div className="p-1.5 text-center text-sm font-bold text-slate-800 truncate">{tableData[2]?.name || '3. Platz'}</div>
                   </div>
-                  <div className="border-2 border-amber-400 rounded-lg bg-amber-50 overflow-hidden shadow-md">
-                    <div className="bg-amber-400 text-xs font-extrabold px-3 py-1 text-amber-900 text-center uppercase tracking-wide">Finale</div>
-                    <div className="p-2 text-center text-sm font-bold text-slate-800 border-b border-amber-200 truncate">{bracket.f1}</div>
-                    <div className="p-2 text-center text-sm font-bold text-amber-700/60 italic truncate">{bracket.f2}</div>
+                  <div className="border-2 border-amber-400 rounded bg-amber-50 overflow-hidden shadow-sm mt-1">
+                    <div className="bg-amber-400 text-[10px] font-extrabold px-2 py-1 text-amber-900 text-center uppercase tracking-wide">Finale</div>
+                    <div className="p-1.5 text-center text-sm font-bold text-slate-800 border-b border-amber-200 truncate">{tableData[0]?.name || '1. Platz'}</div>
+                    <div className="p-1.5 text-center text-xs font-bold text-amber-700/60 italic truncate">Sieger Halbfinale</div>
                   </div>
                 </>
               ) : (
-                <div className="text-center text-sm text-slate-500 italic p-4">
-                  Standard-Baum aktiviert.<br/>Wird am Ende der Vorrunde generiert.
-                </div>
+                <>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
+                      <div className="bg-slate-200 text-[10px] font-bold px-2 py-1 text-slate-600 text-center uppercase tracking-wide">Halbfinale 1</div>
+                      <div className="p-1.5 text-center text-xs font-bold text-slate-800 border-b border-slate-100 truncate">{tableData[0]?.name || '1. Platz'}</div>
+                      <div className="p-1.5 text-center text-xs font-bold text-slate-800 truncate">{tableData[3]?.name || '4. Platz'}</div>
+                    </div>
+                    <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
+                      <div className="bg-slate-200 text-[10px] font-bold px-2 py-1 text-slate-600 text-center uppercase tracking-wide">Halbfinale 2</div>
+                      <div className="p-1.5 text-center text-xs font-bold text-slate-800 border-b border-slate-100 truncate">{tableData[1]?.name || '2. Platz'}</div>
+                      <div className="p-1.5 text-center text-xs font-bold text-slate-800 truncate">{tableData[2]?.name || '3. Platz'}</div>
+                    </div>
+                  </div>
+                  <div className="border-2 border-amber-400 rounded bg-amber-50 overflow-hidden shadow-sm mt-1">
+                    <div className="bg-amber-400 text-[10px] font-extrabold px-2 py-1 text-amber-900 text-center uppercase tracking-wide">Finale</div>
+                    <div className="p-1.5 text-center text-xs font-bold text-amber-700/60 italic border-b border-amber-200 truncate">Sieger HF 1</div>
+                    <div className="p-1.5 text-center text-xs font-bold text-amber-700/60 italic truncate">Sieger HF 2</div>
+                  </div>
+                </>
               )}
             </div>
           </div>
