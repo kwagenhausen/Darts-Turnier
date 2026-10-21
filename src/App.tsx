@@ -27,7 +27,7 @@ export default function App() {
     info: 'Jahresturnier',
     art: 'team', 
     boards: 2,   
-    modus: 'elmenhorst',
+    modus: 'standard',
     
     // Zeit & Legs
     startTime: '19:00',
@@ -48,6 +48,8 @@ export default function App() {
     { id: 't2', name: 'Martial Darts', p1: 'Kevin', p2: 'Mats' },
     { id: 't3', name: 'The Darts Knights', p1: 'Veith', p2: 'Paddy' },
     { id: 't4', name: 'The Lucky Two', p1: 'Remi', p2: 'Jens' },
+    { id: 't5', name: 'Dart Vaders', p1: 'Luke', p2: 'Anakin' },
+    { id: 't6', name: 'Bullseye Bandits', p1: 'Robin', p2: 'Hood' },
   ]);
   const [matches, setMatches] = useState([]);
   
@@ -60,7 +62,7 @@ export default function App() {
 
   // LocalStorage Laden
   useEffect(() => {
-    const saved = localStorage.getItem('dartsApp_v9');
+    const saved = localStorage.getItem('dartsApp_v10');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -77,7 +79,7 @@ export default function App() {
 
   // LocalStorage Speichern
   useEffect(() => {
-    localStorage.setItem('dartsApp_v9', JSON.stringify({ isStarted, config, teams, matches, koScores }));
+    localStorage.setItem('dartsApp_v10', JSON.stringify({ isStarted, config, teams, matches, koScores }));
   }, [isStarted, config, teams, matches, koScores]);
 
   // --- LOGIK ---
@@ -491,10 +493,11 @@ export default function App() {
         </div>
 
         {/* Rechte Seite: Tabelle & K.O. Baum */}
-        <div className="flex-[1] flex flex-col gap-4 min-h-0">
+        {/* HIER IST DAS NEUE LAYOUT: flex-1 statt flex-[1], Tabelle flex-1 min-h-0, Baum flex-none */}
+        <div className="flex-1 flex flex-col gap-4 min-h-0">
           
-          {/* Tabelle */}
-          <div className="flex-[3] flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-0">
+          {/* Tabelle (Bekommt flex-1 und overflow-y-auto, damit nur SIE scrollt) */}
+          <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-0">
             <div className="bg-blue-600 text-white py-2 px-4 flex-none">
               <h2 className="font-bold uppercase tracking-wide text-sm">Live-Tabelle</h2>
             </div>
@@ -532,87 +535,89 @@ export default function App() {
             </div>
           </div>
 
-          {/* Live K.O. Baum */}
-          <div className="flex-[2] flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-0">
+          {/* Live K.O. Baum (Bekommt flex-none, damit er sich nicht mehr selbst "einquetscht") */}
+          <div className="flex-none flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
             <div className="bg-slate-800 text-white py-2 px-4 flex-none">
               <h2 className="font-bold uppercase tracking-wide text-sm">Live Finalrunde</h2>
             </div>
-            <div className="flex-1 p-3 bg-slate-50 overflow-y-auto flex flex-col justify-start gap-3">
+            <div className="p-4 bg-slate-50 flex flex-col justify-start gap-4">
               
               {config.modus === 'elmenhorst' ? (
-                <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
-                  <div className="bg-slate-200 flex justify-between items-center px-2 py-1">
-                    <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Halbfinale</span>
-                    <span className="text-[9px] font-semibold text-slate-500 italic">Best of {config.hfBestOf} • {config.hfModus}</span>
+                <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
+                  <div className="bg-slate-200 flex justify-between items-center px-3 py-2 border-b border-slate-300">
+                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Halbfinale</span>
+                    <span className="text-[10px] font-bold text-slate-500 italic">Best of {config.hfBestOf} • {config.hfModus}</span>
                   </div>
-                  <div className="p-1.5 flex items-center justify-between border-b border-slate-100">
-                    <span className="text-sm font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team1}</span>
-                    <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-slate-100 border border-slate-300 rounded focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <div className="p-2 flex items-center justify-between border-b border-slate-100">
+                    <span className="text-base font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team1}</span>
+                    <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-12 h-10 text-center font-bold text-base bg-slate-100 border border-slate-300 rounded focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
-                  <div className="p-1.5 flex items-center justify-between">
-                    <span className="text-sm font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team2}</span>
-                    <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-slate-100 border border-slate-300 rounded focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                  <div className="p-2 flex items-center justify-between">
+                    <span className="text-base font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team2}</span>
+                    <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-12 h-10 text-center font-bold text-base bg-slate-100 border border-slate-300 rounded focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                   </div>
                 </div>
               ) : (
                 <div>
-                  <div className="text-center mb-1">
-                    <span className="text-[10px] font-bold text-slate-500 uppercase tracking-wide">Halbfinale • Best of {config.hfBestOf} • {config.hfModus}</span>
+                  <div className="text-center mb-2">
+                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-200 px-3 py-1 rounded-full">
+                      Halbfinale • Best of {config.hfBestOf} • {config.hfModus}
+                    </span>
                   </div>
-                  <div className="grid grid-cols-2 gap-2">
-                    <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
-                      <div className="bg-slate-200 text-center px-2 py-1 border-b border-slate-300">
-                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">HF 1</span>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
+                      <div className="bg-slate-200 text-center px-2 py-1.5 border-b border-slate-300">
+                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">HF 1</span>
                       </div>
-                      <div className="p-1 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
-                        <span className="text-xs font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team1}</span>
-                        <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
+                      <div className="p-2 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
+                        <span className="text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team1}</span>
+                        <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
                       </div>
-                      <div className="p-1 flex items-center justify-between bg-slate-50/50">
-                        <span className="text-xs font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team2}</span>
-                        <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
+                      <div className="p-2 flex items-center justify-between bg-slate-50/50">
+                        <span className="text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team2}</span>
+                        <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
                       </div>
                     </div>
-                    <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
-                      <div className="bg-slate-200 text-center px-2 py-1 border-b border-slate-300">
-                         <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">HF 2</span>
+                    <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
+                      <div className="bg-slate-200 text-center px-2 py-1.5 border-b border-slate-300">
+                         <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">HF 2</span>
                       </div>
-                      <div className="p-1 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
-                        <span className="text-xs font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team1}</span>
-                        <input type="number" min="0" value={koScores.hf2_1} onChange={(e) => updateKoScore('hf2', 1, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
+                      <div className="p-2 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
+                        <span className="text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team1}</span>
+                        <input type="number" min="0" value={koScores.hf2_1} onChange={(e) => updateKoScore('hf2', 1, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
                       </div>
-                      <div className="p-1 flex items-center justify-between bg-slate-50/50">
-                        <span className="text-xs font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team2}</span>
-                        <input type="number" min="0" value={koScores.hf2_2} onChange={(e) => updateKoScore('hf2', 2, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
+                      <div className="p-2 flex items-center justify-between bg-slate-50/50">
+                        <span className="text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team2}</span>
+                        <input type="number" min="0" value={koScores.hf2_2} onChange={(e) => updateKoScore('hf2', 2, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
                       </div>
                     </div>
                   </div>
                 </div>
               )}
 
-              {/* FINALE BOX */}
-              <div className="border-2 border-amber-400 rounded bg-amber-50 overflow-hidden shadow-sm">
-                <div className="bg-amber-400 flex justify-between items-center px-2 py-1">
-                  <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wide">Finale</span>
-                  <span className="text-[9px] font-bold text-amber-900/80 italic">Best of {config.finBestOf} • {config.finModus}</span>
+              {/* FINALE BOX (Deutlich größer) */}
+              <div className="border-2 border-amber-400 rounded-lg bg-amber-50 overflow-hidden shadow-md mt-1">
+                <div className="bg-amber-400 flex justify-between items-center px-3 py-2 border-b border-amber-500">
+                  <span className="text-xs font-black text-amber-950 uppercase tracking-widest">Finale</span>
+                  <span className="text-[10px] font-bold text-amber-900 italic">Best of {config.finBestOf} • {config.finModus}</span>
                 </div>
-                <div className="p-1.5 flex items-center justify-between border-b border-amber-200">
-                  <span className={`text-sm font-bold truncate pl-2 ${koTeams.fin_team1.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team1}</span>
-                  <input type="number" min="0" value={koScores.fin_1} onChange={(e) => updateKoScore('fin', 1, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-amber-400 rounded outline-none focus:ring-2 focus:ring-amber-500" />
+                <div className="p-2.5 flex items-center justify-between border-b border-amber-200">
+                  <span className={`text-base font-bold truncate pl-2 ${koTeams.fin_team1.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team1}</span>
+                  <input type="number" min="0" value={koScores.fin_1} onChange={(e) => updateKoScore('fin', 1, e.target.value)} className="w-12 h-10 text-center font-bold text-lg bg-white border border-amber-400 rounded outline-none focus:ring-2 focus:ring-amber-600 shadow-inner" />
                 </div>
-                <div className="p-1.5 flex items-center justify-between">
-                  <span className={`text-sm font-bold truncate pl-2 ${koTeams.fin_team2.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team2}</span>
-                  <input type="number" min="0" value={koScores.fin_2} onChange={(e) => updateKoScore('fin', 2, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-amber-400 rounded outline-none focus:ring-2 focus:ring-amber-500" />
+                <div className="p-2.5 flex items-center justify-between">
+                  <span className={`text-base font-bold truncate pl-2 ${koTeams.fin_team2.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team2}</span>
+                  <input type="number" min="0" value={koScores.fin_2} onChange={(e) => updateKoScore('fin', 2, e.target.value)} className="w-12 h-10 text-center font-bold text-lg bg-white border border-amber-400 rounded outline-none focus:ring-2 focus:ring-amber-600 shadow-inner" />
                 </div>
               </div>
 
-              {/* TURNIERSIEGER ANZEIGE */}
+              {/* TURNIERSIEGER ANZEIGE (Noch kräftiger) */}
               {turnierSieger && (
-                <div className="mt-2 bg-gradient-to-r from-amber-200 via-amber-300 to-amber-200 p-3 rounded-lg text-center shadow-md border border-amber-400">
-                  <div className="text-[10px] uppercase font-black text-amber-800 tracking-widest flex justify-center items-center gap-1 mb-1">
+                <div className="mt-2 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 p-4 rounded-xl text-center shadow-lg border-2 border-yellow-500">
+                  <div className="text-[11px] uppercase font-black text-amber-900 tracking-widest flex justify-center items-center gap-1 mb-1">
                     <TrophyIcon /> Turniersieger
                   </div>
-                  <div className="text-xl font-extrabold text-amber-950 truncate px-2">{turnierSieger}</div>
+                  <div className="text-2xl font-extrabold text-amber-950 truncate px-2 py-1 drop-shadow-sm">{turnierSieger}</div>
                 </div>
               )}
               
