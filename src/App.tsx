@@ -24,16 +24,17 @@ export default function App() {
   const [isStarted, setIsStarted] = useState(false);
   const [config, setConfig] = useState({
     name: 'Elmenhorster Darts Open',
-    info: 'Jahresturnier 2026',
+    info: 'Jahresturnier',
     art: 'team', 
     boards: 2,   
     modus: 'elmenhorst',
     
-    // NEU: Zeit & Legs
+    // Zeit & Legs
     startTime: '19:00',
     vorrundeLegs: 14,
-    vorrundeModus: '301 Single Out',
+    vorrundeMinsPerLeg: 5, // NEU
     vorrundePause: 5,
+    vorrundeModus: '301 Single Out',
     
     hfBestOf: 5,
     hfModus: '501 Double Out',
@@ -49,10 +50,17 @@ export default function App() {
     { id: 't4', name: 'The Lucky Two', p1: 'Remi', p2: 'Jens' },
   ]);
   const [matches, setMatches] = useState([]);
+  
+  // NEU: K.O. Runden Ergebnisse
+  const [koScores, setKoScores] = useState({
+    hf1_1: '', hf1_2: '',
+    hf2_1: '', hf2_2: '',
+    fin_1: '', fin_2: ''
+  });
 
   // LocalStorage Laden
   useEffect(() => {
-    const saved = localStorage.getItem('dartsApp_v7');
+    const saved = localStorage.getItem('dartsApp_v8');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -60,6 +68,7 @@ export default function App() {
         setConfig({ ...config, ...(parsed.config || {}) });
         setTeams(parsed.teams || teams);
         setMatches(parsed.matches || []);
+        setKoScores(parsed.koScores || koScores);
       } catch (e) {
         console.error("Fehler beim Laden", e);
       }
@@ -68,8 +77,8 @@ export default function App() {
 
   // LocalStorage Speichern
   useEffect(() => {
-    localStorage.setItem('dartsApp_v7', JSON.stringify({ isStarted, config, teams, matches }));
-  }, [isStarted, config, teams, matches]);
+    localStorage.setItem('dartsApp_v8', JSON.stringify({ isStarted, config, teams, matches, koScores }));
+  }, [isStarted, config, teams, matches, koScores]);
 
   // --- LOGIK ---
   const handleStart = () => {
@@ -105,9 +114,9 @@ export default function App() {
     let newMatches = [];
     let boardCounts = Array(config.boards + 1).fill(1); 
     
-    // Zeit-Tracking pro Board
+    // Zeit-Tracking pro Board (NEUE BERECHNUNG MIT MINS PER LEG)
     let boardTimes = Array(config.boards + 1).fill(config.startTime);
-    let durationPerMatch = (config.vorrundeLegs * 5) + config.vorrundePause; // Legs * 5 Min + Pause
+    let durationPerMatch = (config.vorrundeLegs * config.vorrundeMinsPerLeg) + config.vorrundePause; 
     
     let teamBoardUsage = {};
     teams.forEach(t => teamBoardUsage[t.id] = Array(config.boards + 1).fill(0));
@@ -149,16 +158,16 @@ export default function App() {
         time: matchTime
       });
       
-      // Update Board-Uhrzeit für das nächste Spiel auf diesem Board
       boardTimes[assignedBoard] = addMinutes(matchTime, durationPerMatch);
     });
     
     setMatches(newMatches);
+    setKoScores({ hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' }); // Reset KO scores
     setIsStarted(true);
   };
 
   const handleReset = () => {
-    if (window.confirm("Turnier wirklich beenden? Alle Spielstände der Vorrunde gehen verloren!")) {
+    if (window.confirm("Turnier wirklich beenden? Alle Spielstände gehen verloren!")) {
       setIsStarted(false);
       setMatches([]);
     }
@@ -171,6 +180,10 @@ export default function App() {
       }
       return m;
     }));
+  };
+
+  const updateKoScore = (matchKey, teamNum, value) => {
+    setKoScores({ ...koScores, [`${matchKey}_${teamNum}`]: value });
   };
 
   const getTable = () => {
@@ -202,6 +215,49 @@ export default function App() {
 
   const tableData = getTable();
   const placesToAdvance = config.modus === 'elmenhorst' ? 3 : 4;
+
+  // --- K.O. RUNDEN LOGIK ---
+  const getKoTeams = () => {
+    let hf1_team1, hf1_team2, hf2_team1, hf2_team2, fin_team1, fin_team2;
+
+    if (config.modus === 'elmenhorst') {
+      hf1_team1 = tableData[1]?.name || '2. Platz';
+      hf1_team2 = tableData[2]?.name || '3. Platz';
+      fin_team1 = tableData[0]?.name || '1. Platz';
+      
+      const s1 = parseInt(koScores.hf1_1);
+      const s2 = parseInt(koScores.hf1_2);
+      if (!isNaN(s1) && !isNaN(s2) && s1 !== s2) {
+        fin_team2 = s1 > s2 ? hf1_team1 : hf1_team2;
+      } else {
+        fin_team2 = 'Sieger Halbfinale';
+      }
+    } else {
+      hf1_team1 = tableData[0]?.name || '1. Platz';
+      hf1_team2 = tableData[3]?.name || '4. Platz';
+      hf2_team1 = tableData[1]?.name || '2. Platz';
+      hf2_team2 = tableData[2]?.name || '3. Platz';
+
+      const h1_s1 = parseInt(koScores.hf1_1);
+      const h1_s2 = parseInt(koScores.hf1_2);
+      if (!isNaN(h1_s1) && !isNaN(h1_s2) && h1_s1 !== h1_s2) {
+        fin_team1 = h1_s1 > h1_s2 ? hf1_team1 : hf1_team2;
+      } else {
+        fin_team1 = 'Sieger HF 1';
+      }
+
+      const h2_s1 = parseInt(koScores.hf2_1);
+      const h2_s2 = parseInt(koScores.hf2_2);
+      if (!isNaN(h2_s1) && !isNaN(h2_s2) && h2_s1 !== h2_s2) {
+        fin_team2 = h2_s1 > h2_s2 ? hf2_team1 : hf2_team2;
+      } else {
+        fin_team2 = 'Sieger HF 2';
+      }
+    }
+    return { hf1_team1, hf1_team2, hf2_team1, hf2_team2, fin_team1, fin_team2 };
+  };
+
+  const koTeams = getKoTeams();
 
   // --- RENDER SETUP ---
   if (!isStarted) {
@@ -256,14 +312,18 @@ export default function App() {
             </div>
 
             <div className="space-y-4">
-              <div className="grid grid-cols-4 gap-4 items-end bg-white p-3 rounded-lg border border-slate-200">
-                <div className="col-span-4 text-sm font-bold text-blue-600 mb-1">Vorrunde</div>
+              <div className="grid grid-cols-5 gap-4 items-end bg-white p-3 rounded-lg border border-slate-200">
+                <div className="col-span-5 text-sm font-bold text-blue-600 mb-1">Vorrunde</div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Feste Legs</label>
                   <input type="number" min="1" value={config.vorrundeLegs} onChange={e => setConfig({...config, vorrundeLegs: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pause zw. Spielen (Min)</label>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Min. pro Leg</label>
+                  <input type="number" min="1" value={config.vorrundeMinsPerLeg} onChange={e => setConfig({...config, vorrundeMinsPerLeg: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pause (Min)</label>
                   <input type="number" min="0" value={config.vorrundePause} onChange={e => setConfig({...config, vorrundePause: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
                 </div>
                 <div className="col-span-2">
@@ -479,16 +539,28 @@ export default function App() {
                       <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Halbfinale</span>
                       <span className="text-[9px] font-semibold text-slate-500 italic">Best of {config.hfBestOf} | {config.hfModus}</span>
                     </div>
-                    <div className="p-1.5 text-center text-sm font-bold text-slate-800 border-b border-slate-100 truncate">{tableData[1]?.name || '2. Platz'}</div>
-                    <div className="p-1.5 text-center text-sm font-bold text-slate-800 truncate">{tableData[2]?.name || '3. Platz'}</div>
+                    <div className="p-1 flex items-center justify-between border-b border-slate-100">
+                      <span className="text-sm font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team1}</span>
+                      <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-10 h-7 text-center font-bold text-sm bg-slate-100 border border-slate-300 rounded focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
+                    <div className="p-1 flex items-center justify-between">
+                      <span className="text-sm font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team2}</span>
+                      <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-10 h-7 text-center font-bold text-sm bg-slate-100 border border-slate-300 rounded focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
+                    </div>
                   </div>
                   <div className="border-2 border-amber-400 rounded bg-amber-50 overflow-hidden shadow-sm mt-1">
                     <div className="bg-amber-400 flex justify-between items-center px-2 py-1">
                       <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wide">Finale</span>
                       <span className="text-[9px] font-bold text-amber-800 italic">Best of {config.finBestOf} | {config.finModus}</span>
                     </div>
-                    <div className="p-1.5 text-center text-sm font-bold text-slate-800 border-b border-amber-200 truncate">{tableData[0]?.name || '1. Platz'}</div>
-                    <div className="p-1.5 text-center text-xs font-bold text-amber-700/60 italic truncate">Sieger Halbfinale</div>
+                    <div className="p-1 flex items-center justify-between border-b border-amber-200">
+                      <span className="text-sm font-bold text-slate-800 truncate pl-2">{koTeams.fin_team1}</span>
+                      <input type="number" min="0" value={koScores.fin_1} onChange={(e) => updateKoScore('fin', 1, e.target.value)} className="w-10 h-7 text-center font-bold text-sm bg-white border border-amber-300 rounded focus:ring-2 focus:ring-amber-500 outline-none" />
+                    </div>
+                    <div className="p-1 flex items-center justify-between">
+                      <span className={`text-sm font-bold truncate pl-2 ${koTeams.fin_team2 === 'Sieger Halbfinale' ? 'text-amber-700/60 italic' : 'text-slate-800'}`}>{koTeams.fin_team2}</span>
+                      <input type="number" min="0" value={koScores.fin_2} onChange={(e) => updateKoScore('fin', 2, e.target.value)} className="w-10 h-7 text-center font-bold text-sm bg-white border border-amber-300 rounded focus:ring-2 focus:ring-amber-500 outline-none" />
+                    </div>
                   </div>
                 </>
               ) : (
@@ -499,16 +571,28 @@ export default function App() {
                         <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">HF 1</span>
                         <span className="text-[8px] font-semibold text-slate-500 italic">Best of {config.hfBestOf}</span>
                       </div>
-                      <div className="p-1.5 text-center text-xs font-bold text-slate-800 border-b border-slate-100 truncate">{tableData[0]?.name || '1. Platz'}</div>
-                      <div className="p-1.5 text-center text-xs font-bold text-slate-800 truncate">{tableData[3]?.name || '4. Platz'}</div>
+                      <div className="p-1 flex items-center justify-between border-b border-slate-100">
+                        <span className="text-xs font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team1}</span>
+                        <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-slate-100 border border-slate-300 rounded outline-none" />
+                      </div>
+                      <div className="p-1 flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team2}</span>
+                        <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-slate-100 border border-slate-300 rounded outline-none" />
+                      </div>
                     </div>
                     <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
                       <div className="bg-slate-200 flex justify-between items-center px-2 py-1">
                          <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">HF 2</span>
                          <span className="text-[8px] font-semibold text-slate-500 italic">({config.hfModus})</span>
                       </div>
-                      <div className="p-1.5 text-center text-xs font-bold text-slate-800 border-b border-slate-100 truncate">{tableData[1]?.name || '2. Platz'}</div>
-                      <div className="p-1.5 text-center text-xs font-bold text-slate-800 truncate">{tableData[2]?.name || '3. Platz'}</div>
+                      <div className="p-1 flex items-center justify-between border-b border-slate-100">
+                        <span className="text-xs font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team1}</span>
+                        <input type="number" min="0" value={koScores.hf2_1} onChange={(e) => updateKoScore('hf2', 1, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-slate-100 border border-slate-300 rounded outline-none" />
+                      </div>
+                      <div className="p-1 flex items-center justify-between">
+                        <span className="text-xs font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team2}</span>
+                        <input type="number" min="0" value={koScores.hf2_2} onChange={(e) => updateKoScore('hf2', 2, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-slate-100 border border-slate-300 rounded outline-none" />
+                      </div>
                     </div>
                   </div>
                   <div className="border-2 border-amber-400 rounded bg-amber-50 overflow-hidden shadow-sm mt-1">
@@ -516,8 +600,14 @@ export default function App() {
                       <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wide">Finale</span>
                       <span className="text-[9px] font-bold text-amber-800 italic">Best of {config.finBestOf} | {config.finModus}</span>
                     </div>
-                    <div className="p-1.5 text-center text-xs font-bold text-amber-700/60 italic border-b border-amber-200 truncate">Sieger HF 1</div>
-                    <div className="p-1.5 text-center text-xs font-bold text-amber-700/60 italic truncate">Sieger HF 2</div>
+                    <div className="p-1 flex items-center justify-between border-b border-amber-200">
+                      <span className={`text-xs font-bold truncate pl-1 ${koTeams.fin_team1.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-800'}`}>{koTeams.fin_team1}</span>
+                      <input type="number" min="0" value={koScores.fin_1} onChange={(e) => updateKoScore('fin', 1, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-white border border-amber-300 rounded outline-none" />
+                    </div>
+                    <div className="p-1 flex items-center justify-between">
+                      <span className={`text-xs font-bold truncate pl-1 ${koTeams.fin_team2.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-800'}`}>{koTeams.fin_team2}</span>
+                      <input type="number" min="0" value={koScores.fin_2} onChange={(e) => updateKoScore('fin', 2, e.target.value)} className="w-8 h-6 text-center font-bold text-xs bg-white border border-amber-300 rounded outline-none" />
+                    </div>
                   </div>
                 </>
               )}
