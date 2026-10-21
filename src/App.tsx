@@ -7,35 +7,57 @@ const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" heigh
 const PlayIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>;
 const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
 const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
+const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
+
+// Hilfsfunktion zur Zeitberechnung
+const addMinutes = (timeStr, minsToAdd) => {
+  if (!timeStr) return "";
+  const [h, m] = timeStr.split(':').map(Number);
+  const date = new Date();
+  date.setHours(h, m, 0, 0);
+  date.setMinutes(date.getMinutes() + minsToAdd);
+  return date.toTimeString().slice(0, 5);
+};
 
 export default function App() {
   // --- STATE ---
   const [isStarted, setIsStarted] = useState(false);
   const [config, setConfig] = useState({
     name: 'Elmenhorster Darts Open',
-    info: 'Game On! 301 Single Out.',
+    info: 'Jahresturnier 2026',
     art: 'team', 
     boards: 2,   
     modus: 'elmenhorst',
+    
+    // NEU: Zeit & Legs
+    startTime: '19:00',
+    vorrundeLegs: 14,
+    vorrundeModus: '301 Single Out',
+    vorrundePause: 5,
+    
+    hfBestOf: 5,
+    hfModus: '501 Double Out',
+    
+    finBestOf: 7,
+    finModus: '501 Double Out',
   });
+  
   const [teams, setTeams] = useState([
     { id: 't1', name: '26er', p1: 'Lasse', p2: 'Lenny' },
     { id: 't2', name: 'Martial Darts', p1: 'Kevin', p2: 'Mats' },
     { id: 't3', name: 'The Darts Knights', p1: 'Veith', p2: 'Paddy' },
     { id: 't4', name: 'The Lucky Two', p1: 'Remi', p2: 'Jens' },
-    { id: 't5', name: 'Dart Vaders', p1: 'Luke', p2: 'Anakin' },
-    { id: 't6', name: 'Bullseye Bandits', p1: 'Robin', p2: 'Hood' },
   ]);
   const [matches, setMatches] = useState([]);
 
   // LocalStorage Laden
   useEffect(() => {
-    const saved = localStorage.getItem('dartsApp_v6');
+    const saved = localStorage.getItem('dartsApp_v7');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
         setIsStarted(parsed.isStarted);
-        setConfig(parsed.config || config);
+        setConfig({ ...config, ...(parsed.config || {}) });
         setTeams(parsed.teams || teams);
         setMatches(parsed.matches || []);
       } catch (e) {
@@ -46,7 +68,7 @@ export default function App() {
 
   // LocalStorage Speichern
   useEffect(() => {
-    localStorage.setItem('dartsApp_v6', JSON.stringify({ isStarted, config, teams, matches }));
+    localStorage.setItem('dartsApp_v7', JSON.stringify({ isStarted, config, teams, matches }));
   }, [isStarted, config, teams, matches]);
 
   // --- LOGIK ---
@@ -56,12 +78,10 @@ export default function App() {
       return;
     }
     
-    // 1. Richtiges Turnier-System (Round-Robin / Circle Method) für ausgewogene Spielpausen
     let matchPool = [];
     let numTeams = teams.length;
     let playTeams = [...teams];
     
-    // Wenn ungerade, ein Dummy-Team für "Freilos" (Bye) hinzufügen
     if (numTeams % 2 !== 0) {
       playTeams.push({ id: 'bye', name: 'BYE' });
       numTeams++;
@@ -74,26 +94,23 @@ export default function App() {
       for (let i = 0; i < half; i++) {
         let t1 = playTeams[i];
         let t2 = playTeams[numTeams - 1 - i];
-        
-        // Match hinzufügen, wenn kein Freilos dabei ist
         if (t1.id !== 'bye' && t2.id !== 'bye') {
           matchPool.push({ team1Id: t1.id, team2Id: t2.id });
         }
       }
-      // Teams im Kreis rotieren
       const last = playTeams.pop();
       playTeams.splice(1, 0, last);
     }
     
-    // 2. Intelligente Board-Zuweisung (Faires Ausbalancieren pro Team)
     let newMatches = [];
-    let boardCounts = Array(config.boards + 1).fill(1); // Zähler für die Nummerierung pro Board
+    let boardCounts = Array(config.boards + 1).fill(1); 
     
-    // Tracking, wie oft jedes Team auf welchem Board gespielt hat
+    // Zeit-Tracking pro Board
+    let boardTimes = Array(config.boards + 1).fill(config.startTime);
+    let durationPerMatch = (config.vorrundeLegs * 5) + config.vorrundePause; // Legs * 5 Min + Pause
+    
     let teamBoardUsage = {};
-    teams.forEach(t => {
-      teamBoardUsage[t.id] = Array(config.boards + 1).fill(0);
-    });
+    teams.forEach(t => teamBoardUsage[t.id] = Array(config.boards + 1).fill(0));
     let globalBoardUsage = Array(config.boards + 1).fill(0);
 
     matchPool.forEach((match, index) => {
@@ -103,11 +120,8 @@ export default function App() {
         let bestBoard = 1;
         let minCost = Infinity;
 
-        // Finde das Board, das für beide Teams bisher am wenigsten genutzt wurde
         for (let b = 1; b <= config.boards; b++) {
           let cost = teamBoardUsage[match.team1Id][b] + teamBoardUsage[match.team2Id][b];
-          
-          // Bei Gleichstand: Nimm das Board, das insgesamt weniger Spiele hat
           if (cost < minCost || (cost === minCost && globalBoardUsage[b] < globalBoardUsage[bestBoard])) {
             minCost = cost;
             bestBoard = b;
@@ -116,13 +130,14 @@ export default function App() {
         assignedBoard = bestBoard;
       }
 
-      // Usage Zähler updaten
       if (config.boards > 1) {
         teamBoardUsage[match.team1Id][assignedBoard]++;
         teamBoardUsage[match.team2Id][assignedBoard]++;
         globalBoardUsage[assignedBoard]++;
       }
 
+      let matchTime = boardTimes[assignedBoard];
+      
       newMatches.push({
         id: `m${index + 1}`,
         team1Id: match.team1Id,
@@ -130,8 +145,12 @@ export default function App() {
         score1: '',
         score2: '',
         board: assignedBoard,
-        matchNumBoard: boardCounts[assignedBoard]++
+        matchNumBoard: boardCounts[assignedBoard]++,
+        time: matchTime
       });
+      
+      // Update Board-Uhrzeit für das nächste Spiel auf diesem Board
+      boardTimes[assignedBoard] = addMinutes(matchTime, durationPerMatch);
     });
     
     setMatches(newMatches);
@@ -188,8 +207,8 @@ export default function App() {
   if (!isStarted) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-800 p-8 font-sans flex justify-center items-start">
-        <div className="w-full max-w-3xl bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
-          <div className="flex flex-col items-center mb-10">
+        <div className="w-full max-w-4xl bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+          <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
               <TrophyIcon />
             </div>
@@ -197,14 +216,11 @@ export default function App() {
             <p className="text-slate-500 mt-2">Turnier-Setup konfigurieren</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-8">
+          <div className="grid grid-cols-2 gap-6 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
+            <h3 className="col-span-2 font-bold text-slate-700 text-lg border-b border-slate-200 pb-2">1. Allgemein</h3>
             <div className="col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Turniername</label>
               <input type="text" value={config.name} onChange={e => setConfig({...config, name: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium" />
-            </div>
-            <div className="col-span-2">
-              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Zusatzinfos (TV-Header)</label>
-              <input type="text" value={config.info} onChange={e => setConfig({...config, info: e.target.value})} placeholder="z.B. 301 Single Out - Best of 14 Legs" className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500" />
             </div>
             
             <div>
@@ -230,10 +246,62 @@ export default function App() {
             </div>
           </div>
 
+          {/* ZEITPLAN & MODUS SETUP */}
+          <div className="mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
+            <h3 className="font-bold text-slate-700 text-lg border-b border-slate-200 pb-2 mb-4">2. Zeitplan & Modus</h3>
+            
+            <div className="mb-4">
+              <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Startzeit Turnier</label>
+              <input type="time" value={config.startTime} onChange={e => setConfig({...config, startTime: e.target.value})} className="p-3 border border-slate-300 rounded-lg bg-white font-bold text-slate-700" />
+            </div>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-4 gap-4 items-end bg-white p-3 rounded-lg border border-slate-200">
+                <div className="col-span-4 text-sm font-bold text-blue-600 mb-1">Vorrunde</div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Feste Legs</label>
+                  <input type="number" min="1" value={config.vorrundeLegs} onChange={e => setConfig({...config, vorrundeLegs: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                </div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pause zw. Spielen (Min)</label>
+                  <input type="number" min="0" value={config.vorrundePause} onChange={e => setConfig({...config, vorrundePause: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                </div>
+                <div className="col-span-2">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gespielter Modus</label>
+                  <input type="text" value={config.vorrundeModus} onChange={e => setConfig({...config, vorrundeModus: e.target.value})} placeholder="z.B. 301 Single Out" className="w-full p-2 border border-slate-300 rounded" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-4 items-end bg-white p-3 rounded-lg border border-slate-200">
+                <div className="col-span-4 text-sm font-bold text-slate-800 mb-1">Halbfinale</div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of (Legs)</label>
+                  <input type="number" min="1" value={config.hfBestOf} onChange={e => setConfig({...config, hfBestOf: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                </div>
+                <div className="col-span-3">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gespielter Modus</label>
+                  <input type="text" value={config.hfModus} onChange={e => setConfig({...config, hfModus: e.target.value})} placeholder="z.B. 501 Double Out" className="w-full p-2 border border-slate-300 rounded" />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-4 gap-4 items-end bg-white p-3 rounded-lg border border-slate-200">
+                <div className="col-span-4 text-sm font-bold text-amber-600 mb-1">Finale</div>
+                <div>
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of (Legs)</label>
+                  <input type="number" min="1" value={config.finBestOf} onChange={e => setConfig({...config, finBestOf: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                </div>
+                <div className="col-span-3">
+                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gespielter Modus</label>
+                  <input type="text" value={config.finModus} onChange={e => setConfig({...config, finModus: e.target.value})} placeholder="z.B. 501 Double Out" className="w-full p-2 border border-slate-300 rounded" />
+                </div>
+              </div>
+            </div>
+          </div>
+
           <div className="mb-8">
-            <label className="flex items-center gap-2 text-xs font-bold text-slate-500 uppercase mb-4">
-              <UserIcon /> Teilnehmer ({teams.length})
-            </label>
+            <h3 className="font-bold text-slate-700 text-lg border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
+              3. Teilnehmer ({teams.length})
+            </h3>
             <div className="space-y-3">
               {teams.map((team, index) => (
                 <div key={team.id} className="flex gap-3 items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
@@ -288,7 +356,9 @@ export default function App() {
           </div>
           <div>
             <h1 className="text-xl font-extrabold text-slate-900 leading-tight">{config.name}</h1>
-            <p className="text-xs font-semibold text-slate-500">{config.info}</p>
+            <p className="text-xs font-semibold text-slate-500">
+              Vorrunde: {config.vorrundeLegs} Legs ({config.vorrundeModus}) | Beginn: {config.startTime} Uhr
+            </p>
           </div>
         </div>
         <button onClick={handleReset} className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-red-600 transition-colors bg-slate-50 hover:bg-red-50 px-4 py-2 rounded-lg border border-slate-200">
@@ -321,10 +391,12 @@ export default function App() {
                     return (
                       <div key={match.id} className={`flex items-center justify-between p-2 rounded-lg border ${isPlayed ? 'bg-white border-slate-200 opacity-60' : 'bg-white border-blue-100 shadow-sm'}`}>
                         
-                        {/* Spielnummer Anzeige */}
-                        <div className="flex-none w-10 text-center border-r border-slate-200 pr-2 mr-2">
-                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Spiel</div>
-                          <div className="text-sm font-black text-slate-700">{match.matchNumBoard || idx + 1}</div>
+                        {/* Spielnummer & UHRZEIT Anzeige */}
+                        <div className="flex-none w-16 text-center border-r border-slate-200 pr-2 mr-2">
+                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Spiel {match.matchNumBoard || idx + 1}</div>
+                          <div className="text-sm font-black text-slate-700 flex items-center justify-center gap-1">
+                            <ClockIcon /> {match.time}
+                          </div>
                         </div>
 
                         <div className="flex-1 text-right pr-4">
@@ -403,12 +475,18 @@ export default function App() {
               {config.modus === 'elmenhorst' ? (
                 <>
                   <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
-                    <div className="bg-slate-200 text-[10px] font-bold px-2 py-1 text-slate-600 text-center uppercase tracking-wide">Halbfinale</div>
+                    <div className="bg-slate-200 flex justify-between items-center px-2 py-1">
+                      <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">Halbfinale</span>
+                      <span className="text-[9px] font-semibold text-slate-500 italic">Best of {config.hfBestOf} | {config.hfModus}</span>
+                    </div>
                     <div className="p-1.5 text-center text-sm font-bold text-slate-800 border-b border-slate-100 truncate">{tableData[1]?.name || '2. Platz'}</div>
                     <div className="p-1.5 text-center text-sm font-bold text-slate-800 truncate">{tableData[2]?.name || '3. Platz'}</div>
                   </div>
                   <div className="border-2 border-amber-400 rounded bg-amber-50 overflow-hidden shadow-sm mt-1">
-                    <div className="bg-amber-400 text-[10px] font-extrabold px-2 py-1 text-amber-900 text-center uppercase tracking-wide">Finale</div>
+                    <div className="bg-amber-400 flex justify-between items-center px-2 py-1">
+                      <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wide">Finale</span>
+                      <span className="text-[9px] font-bold text-amber-800 italic">Best of {config.finBestOf} | {config.finModus}</span>
+                    </div>
                     <div className="p-1.5 text-center text-sm font-bold text-slate-800 border-b border-amber-200 truncate">{tableData[0]?.name || '1. Platz'}</div>
                     <div className="p-1.5 text-center text-xs font-bold text-amber-700/60 italic truncate">Sieger Halbfinale</div>
                   </div>
@@ -417,18 +495,27 @@ export default function App() {
                 <>
                   <div className="grid grid-cols-2 gap-2">
                     <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
-                      <div className="bg-slate-200 text-[10px] font-bold px-2 py-1 text-slate-600 text-center uppercase tracking-wide">Halbfinale 1</div>
+                      <div className="bg-slate-200 flex justify-between items-center px-2 py-1">
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">HF 1</span>
+                        <span className="text-[8px] font-semibold text-slate-500 italic">Best of {config.hfBestOf}</span>
+                      </div>
                       <div className="p-1.5 text-center text-xs font-bold text-slate-800 border-b border-slate-100 truncate">{tableData[0]?.name || '1. Platz'}</div>
                       <div className="p-1.5 text-center text-xs font-bold text-slate-800 truncate">{tableData[3]?.name || '4. Platz'}</div>
                     </div>
                     <div className="border border-slate-300 rounded bg-white overflow-hidden shadow-sm">
-                      <div className="bg-slate-200 text-[10px] font-bold px-2 py-1 text-slate-600 text-center uppercase tracking-wide">Halbfinale 2</div>
+                      <div className="bg-slate-200 flex justify-between items-center px-2 py-1">
+                         <span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">HF 2</span>
+                         <span className="text-[8px] font-semibold text-slate-500 italic">({config.hfModus})</span>
+                      </div>
                       <div className="p-1.5 text-center text-xs font-bold text-slate-800 border-b border-slate-100 truncate">{tableData[1]?.name || '2. Platz'}</div>
                       <div className="p-1.5 text-center text-xs font-bold text-slate-800 truncate">{tableData[2]?.name || '3. Platz'}</div>
                     </div>
                   </div>
                   <div className="border-2 border-amber-400 rounded bg-amber-50 overflow-hidden shadow-sm mt-1">
-                    <div className="bg-amber-400 text-[10px] font-extrabold px-2 py-1 text-amber-900 text-center uppercase tracking-wide">Finale</div>
+                    <div className="bg-amber-400 flex justify-between items-center px-2 py-1">
+                      <span className="text-[10px] font-extrabold text-amber-900 uppercase tracking-wide">Finale</span>
+                      <span className="text-[9px] font-bold text-amber-800 italic">Best of {config.finBestOf} | {config.finModus}</span>
+                    </div>
                     <div className="p-1.5 text-center text-xs font-bold text-amber-700/60 italic border-b border-amber-200 truncate">Sieger HF 1</div>
                     <div className="p-1.5 text-center text-xs font-bold text-amber-700/60 italic truncate">Sieger HF 2</div>
                   </div>
