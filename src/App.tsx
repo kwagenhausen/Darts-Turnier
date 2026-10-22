@@ -62,7 +62,7 @@ export default function App() {
 
   // LocalStorage Laden
   useEffect(() => {
-    const saved = localStorage.getItem('dartsApp_v10');
+    const saved = localStorage.getItem('dartsApp_v11');
     if (saved) {
       try {
         const parsed = JSON.parse(saved);
@@ -79,7 +79,7 @@ export default function App() {
 
   // LocalStorage Speichern
   useEffect(() => {
-    localStorage.setItem('dartsApp_v10', JSON.stringify({ isStarted, config, teams, matches, koScores }));
+    localStorage.setItem('dartsApp_v11', JSON.stringify({ isStarted, config, teams, matches, koScores }));
   }, [isStarted, config, teams, matches, koScores]);
 
   // --- LOGIK ---
@@ -260,7 +260,6 @@ export default function App() {
 
   const koTeams = getKoTeams();
 
-  // Turniersieger berechnen
   let turnierSieger = null;
   const f1 = parseInt(koScores.fin_1);
   const f2 = parseInt(koScores.fin_2);
@@ -311,7 +310,6 @@ export default function App() {
             </div>
           </div>
 
-          {/* ZEITPLAN & MODUS SETUP */}
           <div className="mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
             <h3 className="font-bold text-slate-700 text-lg border-b border-slate-200 pb-2 mb-4">2. Zeitplan & Modus</h3>
             
@@ -459,26 +457,21 @@ export default function App() {
                     
                     return (
                       <div key={match.id} className={`flex items-center justify-between p-2 rounded-lg border ${isPlayed ? 'bg-white border-slate-200 opacity-60' : 'bg-white border-blue-100 shadow-sm'}`}>
-                        
-                        {/* Spielnummer & UHRZEIT Anzeige */}
                         <div className="flex-none w-16 text-center border-r border-slate-200 pr-2 mr-2">
                           <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Spiel {match.matchNumBoard || idx + 1}</div>
                           <div className="text-sm font-black text-slate-700 flex items-center justify-center gap-1">
                             <ClockIcon /> {match.time}
                           </div>
                         </div>
-
                         <div className="flex-1 text-right pr-4">
                           <div className="font-bold text-slate-800 text-sm">{team1?.name}</div>
                           {config.art === 'team' && <div className="text-[10px] text-slate-500">{team1?.p1} & {team1?.p2}</div>}
                         </div>
-                        
                         <div className="flex items-center gap-2 flex-none">
                           <input type="number" min="0" value={match.score1} onChange={(e) => updateScore(match.id, 1, e.target.value)} className="w-12 h-10 text-center font-bold text-lg bg-slate-100 border border-slate-300 rounded-md focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                           <span className="text-slate-400 font-bold">:</span>
                           <input type="number" min="0" value={match.score2} onChange={(e) => updateScore(match.id, 2, e.target.value)} className="w-12 h-10 text-center font-bold text-lg bg-slate-100 border border-slate-300 rounded-md focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
                         </div>
-                        
                         <div className="flex-1 pl-4">
                           <div className="font-bold text-slate-800 text-sm">{team2?.name}</div>
                           {config.art === 'team' && <div className="text-[10px] text-slate-500">{team2?.p1} & {team2?.p2}</div>}
@@ -492,25 +485,23 @@ export default function App() {
           })}
         </div>
 
-        {/* Rechte Seite: Tabelle & K.O. Baum */}
-        {/* HIER IST DAS NEUE LAYOUT: flex-1 statt flex-[1], Tabelle flex-1 min-h-0, Baum flex-none */}
-        <div className="flex-1 flex flex-col gap-4 min-h-0">
+        {/* Rechte Seite: Tabelle & K.O. Baum teilen sich nun fair den Platz */}
+        <div className="flex-[1] flex flex-col gap-4 min-h-0">
           
-          {/* Tabelle (Bekommt flex-1 und overflow-y-auto, damit nur SIE scrollt) */}
-          <div className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-0">
+          {/* Tabelle - Bekommt etwas mehr Flex-Gewichtung und kompaktere Zeilenabstände */}
+          <div className="flex-[1.2] flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-0">
             <div className="bg-blue-600 text-white py-2 px-4 flex-none">
               <h2 className="font-bold uppercase tracking-wide text-sm">Live-Tabelle</h2>
             </div>
-            
             <div className="flex-1 overflow-y-auto">
               <table className="w-full text-left text-sm">
                 <thead className="bg-slate-100 text-slate-500 text-xs uppercase sticky top-0 shadow-sm z-10">
                   <tr>
-                    <th className="p-3">#</th>
-                    <th className="p-3">Team</th>
-                    <th className="p-3 text-center">Sp</th>
-                    <th className="p-3 text-center">Legs</th>
-                    <th className="p-3 text-center">Diff</th>
+                    <th className="px-3 py-2">#</th>
+                    <th className="px-3 py-2">Team</th>
+                    <th className="px-3 py-2 text-center">Sp</th>
+                    <th className="px-3 py-2 text-center">Legs</th>
+                    <th className="px-3 py-2 text-center">Diff</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100">
@@ -518,15 +509,15 @@ export default function App() {
                     const advances = index < placesToAdvance;
                     return (
                       <tr key={row.id} className={advances ? 'bg-green-50/50' : 'bg-red-50/30'}>
-                        <td className="p-3 font-bold text-slate-500">
+                        <td className="px-3 py-2 font-bold text-slate-500">
                           <div className={`w-6 h-6 rounded flex items-center justify-center text-xs ${advances ? 'bg-green-200 text-green-800' : 'bg-slate-200 text-slate-600'}`}>
                             {index + 1}
                           </div>
                         </td>
-                        <td className="p-3 font-bold text-slate-800 truncate max-w-[120px]">{row.name}</td>
-                        <td className="p-3 text-center font-semibold">{row.games}</td>
-                        <td className="p-3 text-center">{row.legsWon}:{row.legsLost}</td>
-                        <td className="p-3 text-center font-bold">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
+                        <td className="px-3 py-2 font-bold text-slate-800 truncate max-w-[120px]">{row.name}</td>
+                        <td className="px-3 py-2 text-center font-semibold">{row.games}</td>
+                        <td className="px-3 py-2 text-center">{row.legsWon}:{row.legsLost}</td>
+                        <td className="px-3 py-2 text-center font-bold">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
                       </tr>
                     );
                   })}
@@ -535,15 +526,17 @@ export default function App() {
             </div>
           </div>
 
-          {/* Live K.O. Baum (Bekommt flex-none, damit er sich nicht mehr selbst "einquetscht") */}
-          <div className="flex-none flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden">
+          {/* Live K.O. Baum - Bekommt sein eigenes Scrolling (overflow-y-auto in sich selbst) */}
+          <div className="flex-[1] flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden min-h-0">
             <div className="bg-slate-800 text-white py-2 px-4 flex-none">
               <h2 className="font-bold uppercase tracking-wide text-sm">Live Finalrunde</h2>
             </div>
-            <div className="p-4 bg-slate-50 flex flex-col justify-start gap-4">
+            
+            {/* Hier ist der Scroll-Container für den Baum, falls er zu groß wird */}
+            <div className="flex-1 overflow-y-auto p-4 bg-slate-50 flex flex-col justify-start gap-4">
               
               {config.modus === 'elmenhorst' ? (
-                <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
+                <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm flex-none">
                   <div className="bg-slate-200 flex justify-between items-center px-3 py-2 border-b border-slate-300">
                     <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Halbfinale</span>
                     <span className="text-[10px] font-bold text-slate-500 italic">Best of {config.hfBestOf} • {config.hfModus}</span>
@@ -558,7 +551,7 @@ export default function App() {
                   </div>
                 </div>
               ) : (
-                <div>
+                <div className="flex-none">
                   <div className="text-center mb-2">
                     <span className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-200 px-3 py-1 rounded-full">
                       Halbfinale • Best of {config.hfBestOf} • {config.hfModus}
@@ -595,8 +588,8 @@ export default function App() {
                 </div>
               )}
 
-              {/* FINALE BOX (Deutlich größer) */}
-              <div className="border-2 border-amber-400 rounded-lg bg-amber-50 overflow-hidden shadow-md mt-1">
+              {/* FINALE BOX */}
+              <div className="border-2 border-amber-400 rounded-lg bg-amber-50 overflow-hidden shadow-md mt-1 flex-none">
                 <div className="bg-amber-400 flex justify-between items-center px-3 py-2 border-b border-amber-500">
                   <span className="text-xs font-black text-amber-950 uppercase tracking-widest">Finale</span>
                   <span className="text-[10px] font-bold text-amber-900 italic">Best of {config.finBestOf} • {config.finModus}</span>
@@ -611,9 +604,9 @@ export default function App() {
                 </div>
               </div>
 
-              {/* TURNIERSIEGER ANZEIGE (Noch kräftiger) */}
+              {/* TURNIERSIEGER ANZEIGE */}
               {turnierSieger && (
-                <div className="mt-2 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 p-4 rounded-xl text-center shadow-lg border-2 border-yellow-500">
+                <div className="mt-2 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 p-4 rounded-xl text-center shadow-lg border-2 border-yellow-500 flex-none">
                   <div className="text-[11px] uppercase font-black text-amber-900 tracking-widest flex justify-center items-center gap-1 mb-1">
                     <TrophyIcon /> Turniersieger
                   </div>
