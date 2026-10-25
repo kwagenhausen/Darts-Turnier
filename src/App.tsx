@@ -610,7 +610,8 @@ export default function App() {
                 </div>
               </div>
             </div>
-
+ 
+ 
             {turnierSieger && (
               <div className="mt-6 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 p-6 rounded-xl text-center shadow-lg border-4 border-yellow-500">
                 <div className="text-sm uppercase font-black text-amber-900 tracking-widest flex justify-center items-center gap-2 mb-2">
