@@ -22,7 +22,7 @@ const TrophyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" heig
 const UserIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M19 21v-2a4 4 0 0 0-4-4H9a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>;
 const TrashIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>;
 const PlayIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="5 3 19 12 5 21 5 3"/></svg>;
-const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
+const SettingsIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>;
 const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12h14"/><path d="M12 5v14"/></svg>;
 const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
 const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>;
@@ -269,12 +269,12 @@ export default function App() {
               </div>
               <div className="grid grid-cols-4 gap-3 items-end bg-white p-3 rounded-lg border border-slate-200">
                 <div className="col-span-4 text-sm font-bold text-slate-800 mb-1">Halbfinale</div>
-                <div className="col-span-1"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of</label><input type="number" min="1" value={config.hfBestOf} onChange={e => handleConfigChange('hfBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" /></div>
+                <div className="col-span-1"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">First to (Legs)</label><input type="number" min="1" value={config.hfBestOf} onChange={e => handleConfigChange('hfBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" /></div>
                 <div className="col-span-3"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Modus</label><input type="text" value={config.hfModus} onChange={e => handleConfigChange('hfModus', e.target.value)} className="w-full p-2 border border-slate-300 rounded" /></div>
               </div>
               <div className="grid grid-cols-4 gap-3 items-end bg-white p-3 rounded-lg border border-slate-200">
                 <div className="col-span-4 text-sm font-bold text-amber-600 mb-1">Finale</div>
-                <div className="col-span-1"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of</label><input type="number" min="1" value={config.finBestOf} onChange={e => handleConfigChange('finBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" /></div>
+                <div className="col-span-1"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">First to (Legs)</label><input type="number" min="1" value={config.finBestOf} onChange={e => handleConfigChange('finBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" /></div>
                 <div className="col-span-3"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Modus</label><input type="text" value={config.finModus} onChange={e => handleConfigChange('finModus', e.target.value)} className="w-full p-2 border border-slate-300 rounded" /></div>
               </div>
             </div>
@@ -418,7 +418,7 @@ export default function App() {
                   <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm flex-none">
                     <div className="bg-slate-200 flex justify-between items-center px-3 py-2 border-b border-slate-300">
                       <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Halbfinale</span>
-                      <span className="text-[10px] font-bold text-slate-500 italic">Best of {config.hfBestOf} • {config.hfModus}</span>
+                      <span className="text-[10px] font-bold text-slate-500 italic">First to {config.hfBestOf} • {config.hfModus}</span>
                     </div>
                     <div className="p-2 flex items-center justify-between border-b border-slate-100">
                       <span className="text-sm md:text-base font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team1}</span>
@@ -433,7 +433,7 @@ export default function App() {
                   <div className="flex-none">
                     <div className="text-center mb-2">
                       <span className="text-[10px] md:text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-200 px-3 py-1 rounded-full">
-                        Halbfinale • Best of {config.hfBestOf} • {config.hfModus}
+                        Halbfinale • First to {config.hfBestOf} • {config.hfModus}
                       </span>
                     </div>
                     <div className="grid grid-cols-2 gap-2 md:gap-3">
@@ -465,7 +465,7 @@ export default function App() {
                 <div className="border-2 border-amber-400 rounded-lg bg-amber-50 overflow-hidden shadow-md flex-none">
                   <div className="bg-amber-400 flex justify-between items-center px-3 py-2 border-b border-amber-500">
                     <span className="text-xs font-black text-amber-950 uppercase tracking-widest">Finale</span>
-                    <span className="text-[10px] font-bold text-amber-900 italic">Best of {config.finBestOf} • {config.finModus}</span>
+                    <span className="text-[10px] font-bold text-amber-900 italic">First to {config.finBestOf} • {config.finModus}</span>
                   </div>
                   <div className="p-2 md:p-2.5 flex items-center justify-between border-b border-amber-200">
                     <span className={`text-sm md:text-base font-bold truncate pl-2 ${koTeams.fin_team1.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team1}</span>
@@ -545,7 +545,7 @@ export default function App() {
               <div className="bg-white rounded-xl shadow-lg border border-slate-300 overflow-hidden">
                 <div className="bg-slate-200 p-3 text-center border-b border-slate-300">
                   <h3 className="font-bold text-slate-700 uppercase tracking-widest">Halbfinale</h3>
-                  <div className="text-xs font-semibold text-slate-500 mt-1">Best of {config.hfBestOf} • {config.hfModus}</div>
+                  <div className="text-xs font-semibold text-slate-500 mt-1">First to {config.hfBestOf} • {config.hfModus}</div>
                 </div>
                 <div className="p-4 space-y-4">
                   <div className="flex items-center justify-between gap-4">
@@ -562,7 +562,7 @@ export default function App() {
               <div className="space-y-4">
                 <div className="text-center mb-3">
                   <span className="text-xs font-bold text-slate-600 uppercase tracking-widest bg-white border border-slate-300 px-4 py-2 rounded-full shadow-sm">
-                    Halbfinale • Best of {config.hfBestOf} • {config.hfModus}
+                    Halbfinale • First to {config.hfBestOf} • {config.hfModus}
                   </span>
                 </div>
                 <div className="bg-white rounded-xl shadow-lg border border-slate-300 overflow-hidden">
@@ -597,7 +597,7 @@ export default function App() {
             <div className="bg-white rounded-xl shadow-xl border-2 border-amber-400 overflow-hidden mt-6">
               <div className="bg-amber-400 p-4 text-center border-b border-amber-500">
                 <h3 className="font-black text-amber-950 uppercase tracking-widest text-xl">Finale</h3>
-                <div className="text-xs font-bold text-amber-900 mt-1">Best of {config.finBestOf} • {config.finModus}</div>
+                <div className="text-xs font-bold text-amber-900 mt-1">First to {config.finBestOf} • {config.finModus}</div>
               </div>
               <div className="p-4 space-y-4">
                 <div className="flex items-center justify-between gap-4">
@@ -610,8 +610,7 @@ export default function App() {
                 </div>
               </div>
             </div>
- 
- 
+
             {turnierSieger && (
               <div className="mt-6 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 p-6 rounded-xl text-center shadow-lg border-4 border-yellow-500">
                 <div className="text-sm uppercase font-black text-amber-900 tracking-widest flex justify-center items-center gap-2 mb-2">
@@ -620,9 +619,11 @@ export default function App() {
                 <div className="text-3xl font-extrabold text-amber-950 truncate drop-shadow-md">{turnierSieger}</div>
               </div>
             )}
+
           </div>
         </main>
       )}
+
     </div>
   );
 }
