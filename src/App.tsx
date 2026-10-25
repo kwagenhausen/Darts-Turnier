@@ -1,4 +1,21 @@
 import React, { useState, useEffect } from 'react';
+import { initializeApp } from "firebase/app";
+import { getDatabase, ref, onValue, set } from "firebase/database";
+
+// --- Firebase Setup ---
+const firebaseConfig = {
+  apiKey: "AIzaSyBK0G_704HgkBMV3IC_4-sqqjqPh7_IebM",
+  authDomain: "darts-app-9d76e.firebaseapp.com",
+  databaseURL: "https://darts-app-9d76e-default-rtdb.firebaseio.com", // Fallback URL
+  projectId: "darts-app-9d76e",
+  storageBucket: "darts-app-9d76e.firebasestorage.app",
+  messagingSenderId: "988886363315",
+  appId: "1:988886363315:web:750868f962555200d394c6",
+  measurementId: "G-0NDN7RCDC2"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
 
 // --- Inline Icons ---
 const TrophyIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9H4.5a2.5 2.5 0 0 1 0-5H6"/><path d="M18 9h1.5a2.5 2.5 0 0 0 0-5H18"/><path d="M4 22h16"/><path d="M10 14.66V17c0 .55-.47.98-.97 1.21C7.85 18.75 7 20.24 7 22"/><path d="M14 14.66V17c0 .55.47.98.97 1.21C16.15 18.75 17 20.24 17 22"/><path d="M18 2H6v7a6 6 0 0 0 12 0V2Z"/></svg>;
@@ -10,7 +27,6 @@ const PlusIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height
 const ClockIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>;
 const CameraIcon = () => <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M14.5 4h-5L7 7H4a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h16a2 2 0 0 0 2-2V9a2 2 0 0 0-2-2h-3l-2.5-3z"/><circle cx="12" cy="13" r="3"/></svg>;
 
-// Hilfsfunktion zur Zeitberechnung
 const addMinutes = (timeStr, minsToAdd) => {
   if (!timeStr) return "";
   const [h, m] = timeStr.split(':').map(Number);
@@ -21,24 +37,13 @@ const addMinutes = (timeStr, minsToAdd) => {
 };
 
 export default function App() {
-  // --- STATE ---
   const [isStarted, setIsStarted] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+  
   const [config, setConfig] = useState({
-    name: 'Elmenhorster Darts Open',
-    info: 'Jahresturnier',
-    art: 'team', 
-    boards: 2,   
-    modus: 'standard',
-    startTime: '19:00',
-    vorrundeLegs: 14,
-    vorrundeMinsPerLeg: 5, 
-    vorrundePause: 5,
-    vorrundeModus: '301 Single Out',
-    hfBestOf: 5,
-    hfModus: '501 Double Out',
-    finBestOf: 7,
-    finModus: '501 Double Out',
+    name: 'Elmenhorster Darts Open', info: 'Jahresturnier', art: 'team', boards: 2, modus: 'standard',
+    startTime: '19:00', vorrundeLegs: 14, vorrundeMinsPerLeg: 5, vorrundePause: 5, vorrundeModus: '301 Single Out',
+    hfBestOf: 5, hfModus: '501 Double Out', finBestOf: 7, finModus: '501 Double Out',
   });
   
   const [teams, setTeams] = useState([
@@ -49,36 +54,55 @@ export default function App() {
     { id: 't5', name: 'Dart Vaders', p1: 'Luke', p2: 'Anakin' },
     { id: 't6', name: 'Bullseye Bandits', p1: 'Robin', p2: 'Hood' },
   ]);
+  
   const [matches, setMatches] = useState([]);
-  const [koScores, setKoScores] = useState({
-    hf1_1: '', hf1_2: '',
-    hf2_1: '', hf2_2: '',
-    fin_1: '', fin_2: ''
-  });
+  const [koScores, setKoScores] = useState({ hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' });
 
-  // LocalStorage Laden
+  // 1. Firebase Live-Sync Listener
   useEffect(() => {
-    const saved = localStorage.getItem('dartsApp_v12');
-    if (saved) {
-      try {
-        const parsed = JSON.parse(saved);
-        setIsStarted(parsed.isStarted);
-        setConfig({ ...config, ...(parsed.config || {}) });
-        setTeams(parsed.teams || teams);
-        setMatches(parsed.matches || []);
-        setKoScores(parsed.koScores || koScores);
-      } catch (e) {
-        console.error("Fehler beim Laden", e);
+    const dbRef = ref(db, 'turnier');
+    const unsubscribe = onValue(dbRef, (snapshot) => {
+      const data = snapshot.val();
+      if (data) {
+        setIsStarted(data.isStarted || false);
+        setConfig(data.config || config);
+        setTeams(data.teams || []);
+        setMatches(data.matches || []);
+        setKoScores(data.koScores || { hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' });
+      } else {
+        // Initialisiert die Datenbank beim allerersten Start
+        set(dbRef, { isStarted: false, config, teams, matches: [], koScores });
       }
-    }
+    });
+    return () => unsubscribe();
   }, []);
 
-  // LocalStorage Speichern
-  useEffect(() => {
-    localStorage.setItem('dartsApp_v12', JSON.stringify({ isStarted, config, teams, matches, koScores }));
-  }, [isStarted, config, teams, matches, koScores]);
+  // --- Spezifische Schreib-Funktionen für Firebase ---
+  const handleConfigChange = (key, value) => {
+    const newConfig = { ...config, [key]: value };
+    setConfig(newConfig);
+    set(ref(db, 'turnier/config'), newConfig);
+  };
 
-  // --- LOGIK ---
+  const handleTeamChange = (index, key, value) => {
+    const newTeams = [...teams];
+    newTeams[index][key] = value;
+    setTeams(newTeams);
+    set(ref(db, 'turnier/teams'), newTeams);
+  };
+
+  const handleAddTeam = () => {
+    const newTeams = [...teams, { id: Date.now().toString(), name: '', p1: '', p2: '' }];
+    setTeams(newTeams);
+    set(ref(db, 'turnier/teams'), newTeams);
+  };
+
+  const handleRemoveTeam = (id) => {
+    const newTeams = teams.filter(t => t.id !== id);
+    setTeams(newTeams);
+    set(ref(db, 'turnier/teams'), newTeams);
+  };
+
   const handleStart = () => {
     if (teams.length < 3) {
       alert("Bitte mindestens 3 Teams/Spieler anlegen.");
@@ -111,21 +135,17 @@ export default function App() {
     
     let newMatches = [];
     let boardCounts = Array(config.boards + 1).fill(1); 
-    
     let boardTimes = Array(config.boards + 1).fill(config.startTime);
     let durationPerMatch = (config.vorrundeLegs * config.vorrundeMinsPerLeg) + config.vorrundePause; 
-    
     let teamBoardUsage = {};
     teams.forEach(t => teamBoardUsage[t.id] = Array(config.boards + 1).fill(0));
     let globalBoardUsage = Array(config.boards + 1).fill(0);
 
     matchPool.forEach((match, index) => {
       let assignedBoard = 1;
-
       if (config.boards > 1) {
         let bestBoard = 1;
         let minCost = Infinity;
-
         for (let b = 1; b <= config.boards; b++) {
           let cost = teamBoardUsage[match.team1Id][b] + teamBoardUsage[match.team2Id][b];
           if (cost < minCost || (cost === minCost && globalBoardUsage[b] < globalBoardUsage[bestBoard])) {
@@ -135,104 +155,81 @@ export default function App() {
         }
         assignedBoard = bestBoard;
       }
-
       if (config.boards > 1) {
         teamBoardUsage[match.team1Id][assignedBoard]++;
         teamBoardUsage[match.team2Id][assignedBoard]++;
         globalBoardUsage[assignedBoard]++;
       }
-
       let matchTime = boardTimes[assignedBoard];
-      
       newMatches.push({
-        id: `m${index + 1}`,
-        team1Id: match.team1Id,
-        team2Id: match.team2Id,
-        score1: '',
-        score2: '',
-        board: assignedBoard,
-        matchNumBoard: boardCounts[assignedBoard]++,
-        time: matchTime
+        id: `m${index + 1}`, team1Id: match.team1Id, team2Id: match.team2Id, score1: '', score2: '', board: assignedBoard, matchNumBoard: boardCounts[assignedBoard]++, time: matchTime
       });
-      
       boardTimes[assignedBoard] = addMinutes(matchTime, durationPerMatch);
     });
     
-    setMatches(newMatches);
-    setKoScores({ hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' });
-    setIsStarted(true);
+    const freshKoScores = { hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' };
+    set(ref(db, 'turnier'), { isStarted: true, config, teams, matches: newMatches, koScores: freshKoScores });
   };
 
   const handleReset = () => {
     if (window.confirm("Turnier wirklich beenden? Alle Spielstände gehen verloren!")) {
-      setIsStarted(false);
-      setMatches([]);
+      const freshKoScores = { hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' };
+      set(ref(db, 'turnier'), { isStarted: false, config, teams, matches: [], koScores: freshKoScores });
     }
   };
-  
-  // Bild-Export Logik
+
+  const updateScore = (matchId, teamNum, value) => {
+    const newMatches = matches.map(m => {
+      if (m.id === matchId) return { ...m, [teamNum === 1 ? 'score1' : 'score2']: value };
+      return m;
+    });
+    setMatches(newMatches);
+    set(ref(db, 'turnier/matches'), newMatches);
+  };
+
+  const updateKoScore = (matchKey, teamNum, value) => {
+    const newKo = { ...koScores, [`${matchKey}_${teamNum}`]: value };
+    setKoScores(newKo);
+    set(ref(db, 'turnier/koScores'), newKo);
+  };
+
   const handleExport = async () => {
     const element = document.getElementById('export-area');
     if (!element) return;
-    
     setIsExporting(true);
     try {
-      // Lädt html2canvas dynamisch herunter, sobald der Button gedrückt wird
       const html2canvas = (await import('html2canvas')).default;
-      const canvas = await html2canvas(element, { 
-        backgroundColor: '#f1f5f9', // slate-100 Hintergrund
-        scale: 2 // Hohe Auflösung
-      }); 
+      const canvas = await html2canvas(element, { backgroundColor: '#f1f5f9', scale: 2 }); 
       const data = canvas.toDataURL('image/png');
-      
       const link = document.createElement('a');
       link.href = data;
       link.download = `${config.name.replace(/\s+/g, '_')}_Ergebnisse.png`;
       link.click();
     } catch (err) {
-      console.error("Export fehlgeschlagen", err);
-      alert("Bild-Export fehlgeschlagen. Bitte stelle sicher, dass html2canvas installiert werden konnte.");
+      console.error(err);
+      alert("Bild-Export fehlgeschlagen.");
     }
     setIsExporting(false);
   };
 
-  const updateScore = (matchId, teamNum, value) => {
-    setMatches(matches.map(m => {
-      if (m.id === matchId) {
-        return { ...m, [teamNum === 1 ? 'score1' : 'score2']: value };
-      }
-      return m;
-    }));
-  };
-
-  const updateKoScore = (matchKey, teamNum, value) => {
-    setKoScores({ ...koScores, [`${matchKey}_${teamNum}`]: value });
-  };
-
+  // --- Tabellen & KO Logik ---
   const getTable = () => {
     let table = teams.map(t => ({ id: t.id, name: t.name, games: 0, legsWon: 0, legsLost: 0, diff: 0 }));
-    
     matches.forEach(m => {
       if (m.score1 !== '' && m.score2 !== '') {
         const s1 = parseInt(m.score1) || 0;
         const s2 = parseInt(m.score2) || 0;
-        
         let t1 = table.find(t => t.id === m.team1Id);
         let t2 = table.find(t => t.id === m.team2Id);
-        
         if (t1 && t2) {
-          t1.games += 1;
-          t2.games += 1;
-          t1.legsWon += s1;
-          t1.legsLost += s2;
-          t2.legsWon += s2;
-          t2.legsLost += s1;
+          t1.games += 1; t2.games += 1;
+          t1.legsWon += s1; t1.legsLost += s2;
+          t2.legsWon += s2; t2.legsLost += s1;
           t1.diff = t1.legsWon - t1.legsLost;
           t2.diff = t2.legsWon - t2.legsLost;
         }
       }
     });
-
     return table.sort((a, b) => b.diff - a.diff || b.legsWon - a.legsWon);
   };
 
@@ -241,90 +238,64 @@ export default function App() {
 
   const getKoTeams = () => {
     let hf1_team1, hf1_team2, hf2_team1, hf2_team2, fin_team1, fin_team2;
-
     if (config.modus === 'elmenhorst') {
-      hf1_team1 = tableData[1]?.name || '2. Platz';
-      hf1_team2 = tableData[2]?.name || '3. Platz';
+      hf1_team1 = tableData[1]?.name || '2. Platz'; hf1_team2 = tableData[2]?.name || '3. Platz';
       fin_team1 = tableData[0]?.name || '1. Platz';
-      
-      const s1 = parseInt(koScores.hf1_1);
-      const s2 = parseInt(koScores.hf1_2);
-      if (!isNaN(s1) && !isNaN(s2) && s1 !== s2) {
-        fin_team2 = s1 > s2 ? hf1_team1 : hf1_team2;
-      } else {
-        fin_team2 = 'Sieger Halbfinale';
-      }
+      const s1 = parseInt(koScores.hf1_1); const s2 = parseInt(koScores.hf1_2);
+      fin_team2 = (!isNaN(s1) && !isNaN(s2) && s1 !== s2) ? (s1 > s2 ? hf1_team1 : hf1_team2) : 'Sieger Halbfinale';
     } else {
-      hf1_team1 = tableData[0]?.name || '1. Platz';
-      hf1_team2 = tableData[3]?.name || '4. Platz';
-      hf2_team1 = tableData[1]?.name || '2. Platz';
-      hf2_team2 = tableData[2]?.name || '3. Platz';
-
-      const h1_s1 = parseInt(koScores.hf1_1);
-      const h1_s2 = parseInt(koScores.hf1_2);
-      if (!isNaN(h1_s1) && !isNaN(h1_s2) && h1_s1 !== h1_s2) {
-        fin_team1 = h1_s1 > h1_s2 ? hf1_team1 : hf1_team2;
-      } else {
-        fin_team1 = 'Sieger HF 1';
-      }
-
-      const h2_s1 = parseInt(koScores.hf2_1);
-      const h2_s2 = parseInt(koScores.hf2_2);
-      if (!isNaN(h2_s1) && !isNaN(h2_s2) && h2_s1 !== h2_s2) {
-        fin_team2 = h2_s1 > h2_s2 ? hf2_team1 : hf2_team2;
-      } else {
-        fin_team2 = 'Sieger HF 2';
-      }
+      hf1_team1 = tableData[0]?.name || '1. Platz'; hf1_team2 = tableData[3]?.name || '4. Platz';
+      hf2_team1 = tableData[1]?.name || '2. Platz'; hf2_team2 = tableData[2]?.name || '3. Platz';
+      const h1_s1 = parseInt(koScores.hf1_1); const h1_s2 = parseInt(koScores.hf1_2);
+      fin_team1 = (!isNaN(h1_s1) && !isNaN(h1_s2) && h1_s1 !== h1_s2) ? (h1_s1 > h1_s2 ? hf1_team1 : hf1_team2) : 'Sieger HF 1';
+      const h2_s1 = parseInt(koScores.hf2_1); const h2_s2 = parseInt(koScores.hf2_2);
+      fin_team2 = (!isNaN(h2_s1) && !isNaN(h2_s2) && h2_s1 !== h2_s2) ? (h2_s1 > h2_s2 ? hf2_team1 : hf2_team2) : 'Sieger HF 2';
     }
     return { hf1_team1, hf1_team2, hf2_team1, hf2_team2, fin_team1, fin_team2 };
   };
 
   const koTeams = getKoTeams();
-
   let turnierSieger = null;
-  const f1 = parseInt(koScores.fin_1);
-  const f2 = parseInt(koScores.fin_2);
-  if (!isNaN(f1) && !isNaN(f2) && f1 !== f2) {
-    turnierSieger = f1 > f2 ? koTeams.fin_team1 : koTeams.fin_team2;
-  }
+  const f1 = parseInt(koScores.fin_1); const f2 = parseInt(koScores.fin_2);
+  if (!isNaN(f1) && !isNaN(f2) && f1 !== f2) turnierSieger = f1 > f2 ? koTeams.fin_team1 : koTeams.fin_team2;
 
+  // --- RENDER SETUP ---
   if (!isStarted) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-800 p-8 font-sans flex justify-center items-start">
-        {/* SETUP SCREEN (UNVERÄNDERT) */}
         <div className="w-full max-w-4xl bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
               <TrophyIcon />
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900">Darts Turnier Manager</h1>
-            <p className="text-slate-500 mt-2">Turnier-Setup konfigurieren</p>
+            <p className="text-slate-500 mt-2">Cloud-Synchronisiertes Setup</p>
           </div>
 
           <div className="grid grid-cols-2 gap-6 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
             <h3 className="col-span-2 font-bold text-slate-700 text-lg border-b border-slate-200 pb-2">1. Allgemein</h3>
             <div className="col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Turniername</label>
-              <input type="text" value={config.name} onChange={e => setConfig({...config, name: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium" />
+              <input type="text" value={config.name} onChange={e => handleConfigChange('name', e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium" />
             </div>
             
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Art</label>
-              <select value={config.art} onChange={e => setConfig({...config, art: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
+              <select value={config.art} onChange={e => handleConfigChange('art', e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
                 <option value="team">Teams (2 Spieler)</option>
                 <option value="einzel">Einzelspieler</option>
               </select>
             </div>
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Anzahl Boards</label>
-              <select value={config.boards} onChange={e => setConfig({...config, boards: parseInt(e.target.value)})} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
+              <select value={config.boards} onChange={e => handleConfigChange('boards', parseInt(e.target.value))} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
                 <option value={1}>1 Board</option>
                 <option value={2}>2 Boards</option>
               </select>
             </div>
             <div className="col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Turnier-Modus</label>
-              <select value={config.modus} onChange={e => setConfig({...config, modus: e.target.value})} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
+              <select value={config.modus} onChange={e => handleConfigChange('modus', e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
                 <option value="elmenhorst">Liga + Elmenhorst-Regel (Platz 1 im Finale, 2 vs 3 im HF)</option>
                 <option value="standard">Liga + Standard Halbfinale (1. vs 4. / 2. vs 3.)</option>
               </select>
@@ -336,7 +307,7 @@ export default function App() {
             
             <div className="mb-4">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Startzeit Turnier</label>
-              <input type="time" value={config.startTime} onChange={e => setConfig({...config, startTime: e.target.value})} className="p-3 border border-slate-300 rounded-lg bg-white font-bold text-slate-700" />
+              <input type="time" value={config.startTime} onChange={e => handleConfigChange('startTime', e.target.value)} className="p-3 border border-slate-300 rounded-lg bg-white font-bold text-slate-700" />
             </div>
 
             <div className="space-y-4">
@@ -344,19 +315,19 @@ export default function App() {
                 <div className="col-span-5 text-sm font-bold text-blue-600 mb-1">Vorrunde</div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Feste Legs</label>
-                  <input type="number" min="1" value={config.vorrundeLegs} onChange={e => setConfig({...config, vorrundeLegs: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                  <input type="number" min="1" value={config.vorrundeLegs} onChange={e => handleConfigChange('vorrundeLegs', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Min. pro Leg</label>
-                  <input type="number" min="1" value={config.vorrundeMinsPerLeg} onChange={e => setConfig({...config, vorrundeMinsPerLeg: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                  <input type="number" min="1" value={config.vorrundeMinsPerLeg} onChange={e => handleConfigChange('vorrundeMinsPerLeg', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
                 </div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pause (Min)</label>
-                  <input type="number" min="0" value={config.vorrundePause} onChange={e => setConfig({...config, vorrundePause: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                  <input type="number" min="0" value={config.vorrundePause} onChange={e => handleConfigChange('vorrundePause', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
                 </div>
                 <div className="col-span-2">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gespielter Modus</label>
-                  <input type="text" value={config.vorrundeModus} onChange={e => setConfig({...config, vorrundeModus: e.target.value})} placeholder="z.B. 301 Single Out" className="w-full p-2 border border-slate-300 rounded" />
+                  <input type="text" value={config.vorrundeModus} onChange={e => handleConfigChange('vorrundeModus', e.target.value)} placeholder="z.B. 301 Single Out" className="w-full p-2 border border-slate-300 rounded" />
                 </div>
               </div>
 
@@ -364,11 +335,11 @@ export default function App() {
                 <div className="col-span-4 text-sm font-bold text-slate-800 mb-1">Halbfinale</div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of (Legs)</label>
-                  <input type="number" min="1" value={config.hfBestOf} onChange={e => setConfig({...config, hfBestOf: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                  <input type="number" min="1" value={config.hfBestOf} onChange={e => handleConfigChange('hfBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
                 </div>
                 <div className="col-span-3">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gespielter Modus</label>
-                  <input type="text" value={config.hfModus} onChange={e => setConfig({...config, hfModus: e.target.value})} placeholder="z.B. 501 Double Out" className="w-full p-2 border border-slate-300 rounded" />
+                  <input type="text" value={config.hfModus} onChange={e => handleConfigChange('hfModus', e.target.value)} placeholder="z.B. 501 Double Out" className="w-full p-2 border border-slate-300 rounded" />
                 </div>
               </div>
 
@@ -376,11 +347,11 @@ export default function App() {
                 <div className="col-span-4 text-sm font-bold text-amber-600 mb-1">Finale</div>
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of (Legs)</label>
-                  <input type="number" min="1" value={config.finBestOf} onChange={e => setConfig({...config, finBestOf: parseInt(e.target.value) || 0})} className="w-full p-2 border border-slate-300 rounded" />
+                  <input type="number" min="1" value={config.finBestOf} onChange={e => handleConfigChange('finBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
                 </div>
                 <div className="col-span-3">
                   <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gespielter Modus</label>
-                  <input type="text" value={config.finModus} onChange={e => setConfig({...config, finModus: e.target.value})} placeholder="z.B. 501 Double Out" className="w-full p-2 border border-slate-300 rounded" />
+                  <input type="text" value={config.finModus} onChange={e => handleConfigChange('finModus', e.target.value)} placeholder="z.B. 501 Double Out" className="w-full p-2 border border-slate-300 rounded" />
                 </div>
               </div>
             </div>
@@ -396,36 +367,28 @@ export default function App() {
                   <div className="w-8 h-8 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm">
                     {index + 1}
                   </div>
-                  <input type="text" value={team.name} placeholder={config.art === 'team' ? "Teamname" : "Spielername"} onChange={e => {
-                    const newTeams = [...teams];
-                    newTeams[index].name = e.target.value;
-                    setTeams(newTeams);
-                  }} className="flex-[2] p-2 border border-slate-200 rounded bg-white text-sm font-semibold" />
+                  <input type="text" value={team.name} placeholder={config.art === 'team' ? "Teamname" : "Spielername"} onChange={e => handleTeamChange(index, 'name', e.target.value)} className="flex-[2] p-2 border border-slate-200 rounded bg-white text-sm font-semibold" />
                   
                   {config.art === 'team' && (
                     <>
-                      <input type="text" value={team.p1} placeholder="Spieler 1" onChange={e => {
-                        const newTeams = [...teams]; newTeams[index].p1 = e.target.value; setTeams(newTeams);
-                      }} className="flex-1 p-2 border border-slate-200 rounded bg-white text-sm" />
-                      <input type="text" value={team.p2} placeholder="Spieler 2" onChange={e => {
-                        const newTeams = [...teams]; newTeams[index].p2 = e.target.value; setTeams(newTeams);
-                      }} className="flex-1 p-2 border border-slate-200 rounded bg-white text-sm" />
+                      <input type="text" value={team.p1} placeholder="Spieler 1" onChange={e => handleTeamChange(index, 'p1', e.target.value)} className="flex-1 p-2 border border-slate-200 rounded bg-white text-sm" />
+                      <input type="text" value={team.p2} placeholder="Spieler 2" onChange={e => handleTeamChange(index, 'p2', e.target.value)} className="flex-1 p-2 border border-slate-200 rounded bg-white text-sm" />
                     </>
                   )}
                   
-                  <button onClick={() => setTeams(teams.filter(t => t.id !== team.id))} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
+                  <button onClick={() => handleRemoveTeam(team.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
                     <TrashIcon />
                   </button>
                 </div>
               ))}
             </div>
-            <button onClick={() => setTeams([...teams, { id: Date.now().toString(), name: '', p1: '', p2: '' }])} className="mt-4 flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800">
+            <button onClick={handleAddTeam} className="mt-4 flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800">
               <PlusIcon /> Weiteren Teilnehmer hinzufügen
             </button>
           </div>
 
           <button onClick={handleStart} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md">
-            <PlayIcon /> Turnier starten
+            <PlayIcon /> Turnier starten (Cloud Sync aktiv)
           </button>
         </div>
       </div>
@@ -433,10 +396,8 @@ export default function App() {
   }
 
   // --- RENDER TV DASHBOARD ---
-  
   return (
     <div className="h-screen flex flex-col bg-slate-100 font-sans text-slate-800 overflow-hidden">
-      {/* HEADER MIT NEUEM EXPORT BUTTON */}
       <header className="flex-none h-16 bg-white border-b border-slate-200 shadow-sm px-6 flex items-center justify-between z-10">
         <div className="flex items-center gap-4">
           <div className="w-10 h-10 bg-blue-600 text-white rounded-lg flex items-center justify-center shadow-inner">
@@ -460,10 +421,7 @@ export default function App() {
         </div>
       </header>
 
-      {/* MAIN DASHBOARD CONTENT (ID für Export!) */}
       <main id="export-area" className="flex-1 flex gap-4 p-4 min-h-0 bg-slate-100">
-        
-        {/* Linke Seite: Spielplan */}
         <div className="flex-[2] flex gap-4 min-h-0">
           {[...Array(config.boards)].map((_, boardIdx) => {
             const boardNum = boardIdx + 1;
@@ -512,9 +470,7 @@ export default function App() {
           })}
         </div>
 
-        {/* Rechte Seite: Tabelle & K.O. Baum */}
         <div className="flex-[1] flex flex-col gap-4 min-h-0">
-          
           <div className="flex-[1.2] flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-0">
             <div className="bg-blue-600 text-white py-2 px-4 flex-none">
               <h2 className="font-bold uppercase tracking-wide text-sm">Live-Tabelle</h2>
@@ -637,7 +593,6 @@ export default function App() {
               
             </div>
           </div>
-
         </div>
       </main>
     </div>
