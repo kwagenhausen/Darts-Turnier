@@ -3,6 +3,7 @@ import { initializeApp } from "firebase/app";
 import { getDatabase, ref, onValue, set } from "firebase/database";
 
 // --- Firebase Setup ---
+// ⚠️ WICHTIG: Füge hier wieder DEINE funktionierende Konfiguration inkl. databaseURL ein!
 const firebaseConfig = {
   apiKey: "AIzaSyBK0G_704HgkBMV3IC_4-sqqjqPh7_IebM",
   authDomain: "darts-app-9d76e.firebaseapp.com",
@@ -40,6 +41,9 @@ export default function App() {
   const [isStarted, setIsStarted] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
   
+  // NEU: Steuert, welche Ansicht auf diesem Gerät angezeigt wird (tv, board1, board2, ko)
+  const [viewMode, setViewMode] = useState('tv');
+  
   const [config, setConfig] = useState({
     name: 'Elmenhorster Darts Open', info: 'Jahresturnier', art: 'team', boards: 2, modus: 'standard',
     startTime: '19:00', vorrundeLegs: 14, vorrundeMinsPerLeg: 5, vorrundePause: 5, vorrundeModus: '301 Single Out',
@@ -56,7 +60,7 @@ export default function App() {
   const [matches, setMatches] = useState([]);
   const [koScores, setKoScores] = useState({ hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' });
 
-  // PURE CLOUD SYNC (Kein LocalStorage mehr!)
+  // Cloud Sync
   useEffect(() => {
     const dbRef = ref(db, 'turnier');
     const unsubscribe = onValue(dbRef, (snapshot) => {
@@ -98,35 +102,20 @@ export default function App() {
   };
 
   const handleStart = () => {
-    if (teams.length < 3) {
-      alert("Bitte mindestens 3 Teams/Spieler anlegen.");
-      return;
-    }
-    
+    if (teams.length < 3) return alert("Bitte mindestens 3 Teams/Spieler anlegen.");
     let matchPool = [];
     let numTeams = teams.length;
     let playTeams = [...teams];
-    
-    if (numTeams % 2 !== 0) {
-      playTeams.push({ id: 'bye', name: 'BYE' });
-      numTeams++;
-    }
-    
+    if (numTeams % 2 !== 0) { playTeams.push({ id: 'bye', name: 'BYE' }); numTeams++; }
     let rounds = numTeams - 1;
     let half = numTeams / 2;
-    
     for (let round = 0; round < rounds; round++) {
       for (let i = 0; i < half; i++) {
-        let t1 = playTeams[i];
-        let t2 = playTeams[numTeams - 1 - i];
-        if (t1.id !== 'bye' && t2.id !== 'bye') {
-          matchPool.push({ team1Id: t1.id, team2Id: t2.id });
-        }
+        let t1 = playTeams[i]; let t2 = playTeams[numTeams - 1 - i];
+        if (t1.id !== 'bye' && t2.id !== 'bye') matchPool.push({ team1Id: t1.id, team2Id: t2.id });
       }
-      const last = playTeams.pop();
-      playTeams.splice(1, 0, last);
+      const last = playTeams.pop(); playTeams.splice(1, 0, last);
     }
-    
     let newMatches = [];
     let boardCounts = Array(config.boards + 1).fill(1); 
     let boardTimes = Array(config.boards + 1).fill(config.startTime);
@@ -138,38 +127,25 @@ export default function App() {
     matchPool.forEach((match, index) => {
       let assignedBoard = 1;
       if (config.boards > 1) {
-        let bestBoard = 1;
-        let minCost = Infinity;
+        let bestBoard = 1; let minCost = Infinity;
         for (let b = 1; b <= config.boards; b++) {
           let cost = teamBoardUsage[match.team1Id][b] + teamBoardUsage[match.team2Id][b];
-          if (cost < minCost || (cost === minCost && globalBoardUsage[b] < globalBoardUsage[bestBoard])) {
-            minCost = cost;
-            bestBoard = b;
-          }
+          if (cost < minCost || (cost === minCost && globalBoardUsage[b] < globalBoardUsage[bestBoard])) { minCost = cost; bestBoard = b; }
         }
         assignedBoard = bestBoard;
       }
-      if (config.boards > 1) {
-        teamBoardUsage[match.team1Id][assignedBoard]++;
-        teamBoardUsage[match.team2Id][assignedBoard]++;
-        globalBoardUsage[assignedBoard]++;
-      }
+      if (config.boards > 1) { teamBoardUsage[match.team1Id][assignedBoard]++; teamBoardUsage[match.team2Id][assignedBoard]++; globalBoardUsage[assignedBoard]++; }
       let matchTime = boardTimes[assignedBoard];
-      newMatches.push({
-        id: `m${index + 1}`, team1Id: match.team1Id, team2Id: match.team2Id, score1: '', score2: '', board: assignedBoard, matchNumBoard: boardCounts[assignedBoard]++, time: matchTime
-      });
+      newMatches.push({ id: `m${index + 1}`, team1Id: match.team1Id, team2Id: match.team2Id, score1: '', score2: '', board: assignedBoard, matchNumBoard: boardCounts[assignedBoard]++, time: matchTime });
       boardTimes[assignedBoard] = addMinutes(matchTime, durationPerMatch);
     });
-    
     const freshKoScores = { hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' };
-    // Speichert den START in der Cloud
     set(ref(db, 'turnier'), { isStarted: true, config, teams, matches: newMatches, koScores: freshKoScores });
   };
 
   const handleReset = () => {
     if (window.confirm("Turnier wirklich beenden? Alle Spielstände gehen verloren!")) {
       const freshKoScores = { hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' };
-      // Überschreibt die Cloud mit einem sauberen Reset
       set(ref(db, 'turnier'), { isStarted: false, config, teams, matches: [], koScores: freshKoScores });
     }
   };
@@ -197,14 +173,9 @@ export default function App() {
       const html2canvas = (await import('html2canvas')).default;
       const canvas = await html2canvas(element, { backgroundColor: '#f1f5f9', scale: 2 }); 
       const data = canvas.toDataURL('image/png');
-      const link = document.createElement('a');
-      link.href = data;
-      link.download = `${config.name.replace(/\s+/g, '_')}_Ergebnisse.png`;
-      link.click();
-    } catch (err) {
-      console.error(err);
-      alert("Bild-Export fehlgeschlagen.");
-    }
+      const link = document.createElement('a'); link.href = data;
+      link.download = `${config.name.replace(/\s+/g, '_')}_Ergebnisse.png`; link.click();
+    } catch (err) { alert("Bild-Export fehlgeschlagen."); }
     setIsExporting(false);
   };
 
@@ -212,16 +183,11 @@ export default function App() {
     let table = teams.map(t => ({ id: t.id, name: t.name, games: 0, legsWon: 0, legsLost: 0, diff: 0 }));
     matches.forEach(m => {
       if (m.score1 !== '' && m.score2 !== '') {
-        const s1 = parseInt(m.score1) || 0;
-        const s2 = parseInt(m.score2) || 0;
-        let t1 = table.find(t => t.id === m.team1Id);
-        let t2 = table.find(t => t.id === m.team2Id);
+        const s1 = parseInt(m.score1) || 0; const s2 = parseInt(m.score2) || 0;
+        let t1 = table.find(t => t.id === m.team1Id); let t2 = table.find(t => t.id === m.team2Id);
         if (t1 && t2) {
-          t1.games += 1; t2.games += 1;
-          t1.legsWon += s1; t1.legsLost += s2;
-          t2.legsWon += s2; t2.legsLost += s1;
-          t1.diff = t1.legsWon - t1.legsLost;
-          t2.diff = t2.legsWon - t2.legsLost;
+          t1.games += 1; t2.games += 1; t1.legsWon += s1; t1.legsLost += s2; t2.legsWon += s2; t2.legsLost += s1;
+          t1.diff = t1.legsWon - t1.legsLost; t2.diff = t2.legsWon - t2.legsLost;
         }
       }
     });
@@ -254,25 +220,27 @@ export default function App() {
   const f1 = parseInt(koScores.fin_1); const f2 = parseInt(koScores.fin_2);
   if (!isNaN(f1) && !isNaN(f2) && f1 !== f2) turnierSieger = f1 > f2 ? koTeams.fin_team1 : koTeams.fin_team2;
 
+
+  // --- 1. SETUP SCREEN ---
   if (!isStarted) {
     return (
-      <div className="min-h-screen bg-slate-50 text-slate-800 p-8 font-sans flex justify-center items-start">
-        <div className="w-full max-w-4xl bg-white p-8 rounded-2xl shadow-sm border border-slate-200">
+      <div className="min-h-screen bg-slate-50 text-slate-800 p-4 md:p-8 font-sans flex justify-center items-start">
+        <div className="w-full max-w-4xl bg-white p-6 md:p-8 rounded-2xl shadow-sm border border-slate-200">
           <div className="flex flex-col items-center mb-8">
             <div className="w-16 h-16 bg-blue-100 text-blue-600 rounded-2xl flex items-center justify-center mb-4">
               <TrophyIcon />
             </div>
-            <h1 className="text-3xl font-extrabold text-slate-900">Darts Turnier Manager</h1>
+            <h1 className="text-2xl md:text-3xl font-extrabold text-slate-900 text-center">Darts Turnier Manager</h1>
             <p className="text-slate-500 mt-2 font-semibold">Live Cloud Sync aktiv ☁️</p>
           </div>
 
-          <div className="grid grid-cols-2 gap-6 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
-            <h3 className="col-span-2 font-bold text-slate-700 text-lg border-b border-slate-200 pb-2">1. Allgemein</h3>
-            <div className="col-span-2">
+          {/* Setup-Inhalte bleiben gleich, nur leicht angepasste Paddings für Mobile */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6 mb-8 bg-slate-50 p-4 md:p-6 rounded-xl border border-slate-100">
+            <h3 className="col-span-1 md:col-span-2 font-bold text-slate-700 text-lg border-b border-slate-200 pb-2">1. Allgemein</h3>
+            <div className="col-span-1 md:col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Turniername</label>
               <input type="text" value={config.name} onChange={e => handleConfigChange('name', e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 font-medium" />
             </div>
-            
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Art</label>
               <select value={config.art} onChange={e => handleConfigChange('art', e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
@@ -283,11 +251,10 @@ export default function App() {
             <div>
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Anzahl Boards</label>
               <select value={config.boards} onChange={e => handleConfigChange('boards', parseInt(e.target.value))} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
-                <option value={1}>1 Board</option>
-                <option value={2}>2 Boards</option>
+                <option value={1}>1 Board</option><option value={2}>2 Boards</option>
               </select>
             </div>
-            <div className="col-span-2">
+            <div className="col-span-1 md:col-span-2">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Turnier-Modus</label>
               <select value={config.modus} onChange={e => handleConfigChange('modus', e.target.value)} className="w-full p-3 border border-slate-300 rounded-lg bg-white">
                 <option value="elmenhorst">Liga + Elmenhorst-Regel (Platz 1 im Finale, 2 vs 3 im HF)</option>
@@ -296,299 +263,390 @@ export default function App() {
             </div>
           </div>
 
-          <div className="mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
+          <div className="mb-8 bg-slate-50 p-4 md:p-6 rounded-xl border border-slate-100">
             <h3 className="font-bold text-slate-700 text-lg border-b border-slate-200 pb-2 mb-4">2. Zeitplan & Modus</h3>
-            
             <div className="mb-4">
               <label className="block text-xs font-bold text-slate-500 uppercase mb-2">Startzeit Turnier</label>
-              <input type="time" value={config.startTime} onChange={e => handleConfigChange('startTime', e.target.value)} className="p-3 border border-slate-300 rounded-lg bg-white font-bold text-slate-700" />
+              <input type="time" value={config.startTime} onChange={e => handleConfigChange('startTime', e.target.value)} className="p-3 border border-slate-300 rounded-lg bg-white font-bold text-slate-700 w-full md:w-auto" />
             </div>
-
             <div className="space-y-4">
-              <div className="grid grid-cols-5 gap-4 items-end bg-white p-3 rounded-lg border border-slate-200">
-                <div className="col-span-5 text-sm font-bold text-blue-600 mb-1">Vorrunde</div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Feste Legs</label>
-                  <input type="number" min="1" value={config.vorrundeLegs} onChange={e => handleConfigChange('vorrundeLegs', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Min. pro Leg</label>
-                  <input type="number" min="1" value={config.vorrundeMinsPerLeg} onChange={e => handleConfigChange('vorrundeMinsPerLeg', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
-                </div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pause (Min)</label>
-                  <input type="number" min="0" value={config.vorrundePause} onChange={e => handleConfigChange('vorrundePause', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
-                </div>
-                <div className="col-span-2">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gespielter Modus</label>
-                  <input type="text" value={config.vorrundeModus} onChange={e => handleConfigChange('vorrundeModus', e.target.value)} placeholder="z.B. 301 Single Out" className="w-full p-2 border border-slate-300 rounded" />
-                </div>
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 items-end bg-white p-3 rounded-lg border border-slate-200">
+                <div className="col-span-2 md:col-span-5 text-sm font-bold text-blue-600 mb-1">Vorrunde</div>
+                <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Feste Legs</label><input type="number" min="1" value={config.vorrundeLegs} onChange={e => handleConfigChange('vorrundeLegs', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" /></div>
+                <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Min. pro Leg</label><input type="number" min="1" value={config.vorrundeMinsPerLeg} onChange={e => handleConfigChange('vorrundeMinsPerLeg', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" /></div>
+                <div><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Pause (Min)</label><input type="number" min="0" value={config.vorrundePause} onChange={e => handleConfigChange('vorrundePause', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" /></div>
+                <div className="col-span-2"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Modus</label><input type="text" value={config.vorrundeModus} onChange={e => handleConfigChange('vorrundeModus', e.target.value)} className="w-full p-2 border border-slate-300 rounded" /></div>
               </div>
-
-              <div className="grid grid-cols-4 gap-4 items-end bg-white p-3 rounded-lg border border-slate-200">
+              <div className="grid grid-cols-4 gap-3 items-end bg-white p-3 rounded-lg border border-slate-200">
                 <div className="col-span-4 text-sm font-bold text-slate-800 mb-1">Halbfinale</div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of (Legs)</label>
-                  <input type="number" min="1" value={config.hfBestOf} onChange={e => handleConfigChange('hfBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
-                </div>
-                <div className="col-span-3">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gespielter Modus</label>
-                  <input type="text" value={config.hfModus} onChange={e => handleConfigChange('hfModus', e.target.value)} placeholder="z.B. 501 Double Out" className="w-full p-2 border border-slate-300 rounded" />
-                </div>
+                <div className="col-span-1"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of</label><input type="number" min="1" value={config.hfBestOf} onChange={e => handleConfigChange('hfBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" /></div>
+                <div className="col-span-3"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Modus</label><input type="text" value={config.hfModus} onChange={e => handleConfigChange('hfModus', e.target.value)} className="w-full p-2 border border-slate-300 rounded" /></div>
               </div>
-
-              <div className="grid grid-cols-4 gap-4 items-end bg-white p-3 rounded-lg border border-slate-200">
+              <div className="grid grid-cols-4 gap-3 items-end bg-white p-3 rounded-lg border border-slate-200">
                 <div className="col-span-4 text-sm font-bold text-amber-600 mb-1">Finale</div>
-                <div>
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of (Legs)</label>
-                  <input type="number" min="1" value={config.finBestOf} onChange={e => handleConfigChange('finBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" />
-                </div>
-                <div className="col-span-3">
-                  <label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Gespielter Modus</label>
-                  <input type="text" value={config.finModus} onChange={e => handleConfigChange('finModus', e.target.value)} placeholder="z.B. 501 Double Out" className="w-full p-2 border border-slate-300 rounded" />
-                </div>
+                <div className="col-span-1"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Best of</label><input type="number" min="1" value={config.finBestOf} onChange={e => handleConfigChange('finBestOf', parseInt(e.target.value) || 0)} className="w-full p-2 border border-slate-300 rounded" /></div>
+                <div className="col-span-3"><label className="block text-[10px] font-bold text-slate-400 uppercase mb-1">Modus</label><input type="text" value={config.finModus} onChange={e => handleConfigChange('finModus', e.target.value)} className="w-full p-2 border border-slate-300 rounded" /></div>
               </div>
             </div>
           </div>
 
           <div className="mb-8">
-            <h3 className="font-bold text-slate-700 text-lg border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">
-              3. Teilnehmer ({teams.length})
-            </h3>
+            <h3 className="font-bold text-slate-700 text-lg border-b border-slate-200 pb-2 mb-4 flex items-center gap-2">3. Teilnehmer ({teams.length})</h3>
             <div className="space-y-3">
               {teams.map((team, index) => (
-                <div key={team.id} className="flex gap-3 items-center bg-slate-50 p-2 rounded-xl border border-slate-100">
-                  <div className="w-8 h-8 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm">
-                    {index + 1}
-                  </div>
-                  <input type="text" value={team.name} placeholder={config.art === 'team' ? "Teamname" : "Spielername"} onChange={e => handleTeamChange(index, 'name', e.target.value)} className="flex-[2] p-2 border border-slate-200 rounded bg-white text-sm font-semibold" />
-                  
+                <div key={team.id} className="flex flex-wrap md:flex-nowrap gap-2 md:gap-3 items-center bg-slate-50 p-2 md:p-3 rounded-xl border border-slate-100">
+                  <div className="w-8 h-8 flex-shrink-0 bg-blue-100 text-blue-600 rounded-full flex items-center justify-center font-bold text-sm">{index + 1}</div>
+                  <input type="text" value={team.name} placeholder={config.art === 'team' ? "Teamname" : "Spielername"} onChange={e => handleTeamChange(index, 'name', e.target.value)} className="flex-1 min-w-[120px] p-2 border border-slate-200 rounded bg-white text-sm font-semibold" />
                   {config.art === 'team' && (
                     <>
-                      <input type="text" value={team.p1} placeholder="Spieler 1" onChange={e => handleTeamChange(index, 'p1', e.target.value)} className="flex-1 p-2 border border-slate-200 rounded bg-white text-sm" />
-                      <input type="text" value={team.p2} placeholder="Spieler 2" onChange={e => handleTeamChange(index, 'p2', e.target.value)} className="flex-1 p-2 border border-slate-200 rounded bg-white text-sm" />
+                      <input type="text" value={team.p1} placeholder="Sp. 1" onChange={e => handleTeamChange(index, 'p1', e.target.value)} className="w-1/3 md:flex-1 p-2 border border-slate-200 rounded bg-white text-sm" />
+                      <input type="text" value={team.p2} placeholder="Sp. 2" onChange={e => handleTeamChange(index, 'p2', e.target.value)} className="w-1/3 md:flex-1 p-2 border border-slate-200 rounded bg-white text-sm" />
                     </>
                   )}
-                  
-                  <button onClick={() => handleRemoveTeam(team.id)} className="p-2 text-red-400 hover:text-red-600 hover:bg-red-50 rounded-lg transition-colors">
-                    <TrashIcon />
-                  </button>
+                  <button onClick={() => handleRemoveTeam(team.id)} className="p-2 text-red-400 hover:text-red-600 bg-red-50 rounded-lg"><TrashIcon /></button>
                 </div>
               ))}
             </div>
-            <button onClick={handleAddTeam} className="mt-4 flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800">
-              <PlusIcon /> Weiteren Teilnehmer hinzufügen
-            </button>
+            <button onClick={handleAddTeam} className="mt-4 flex items-center gap-2 text-sm font-semibold text-blue-600 hover:text-blue-800"><PlusIcon /> Weiteren Teilnehmer hinzufügen</button>
           </div>
-
           <button onClick={handleStart} className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold py-4 rounded-xl flex items-center justify-center gap-2 transition-colors shadow-md">
-            <PlayIcon /> Turnier starten (Cloud Sync aktiv)
+            <PlayIcon /> Turnier starten (Cloud Sync)
           </button>
         </div>
       </div>
     );
   }
 
-  // --- RENDER TV DASHBOARD ---
+  // --- 2. RENDER TURNIER (TV ODER BOARD CONTROLLER) ---
   return (
-    <div className="h-screen flex flex-col bg-slate-100 font-sans text-slate-800 overflow-hidden">
-      <header className="flex-none h-16 bg-white border-b border-slate-200 shadow-sm px-6 flex items-center justify-between z-10">
-        <div className="flex items-center gap-4">
-          <div className="w-10 h-10 bg-blue-600 text-white rounded-lg flex items-center justify-center shadow-inner">
+    // lg:h-screen sorgt dafür, dass auf großen Displays nix scrollt, auf Handys (min-h-screen) aber der ganze Container wachsen kann.
+    <div className="min-h-screen lg:h-screen flex flex-col bg-slate-100 font-sans text-slate-800 lg:overflow-hidden">
+      
+      {/* HEADER: Flexibel für Handy & TV */}
+      <header className="flex-none bg-white border-b border-slate-200 shadow-sm px-4 md:px-6 py-3 flex flex-col md:flex-row items-center justify-between gap-3 z-10">
+        <div className="flex items-center gap-3 w-full md:w-auto">
+          <div className="w-10 h-10 bg-blue-600 text-white rounded-lg flex items-center justify-center shadow-inner flex-shrink-0">
             <TrophyIcon />
           </div>
-          <div>
-            <h1 className="text-xl font-extrabold text-slate-900 leading-tight">{config.name}</h1>
-            <p className="text-xs font-semibold text-slate-500">
-              Vorrunde: {config.vorrundeLegs} Legs ({config.vorrundeModus}) | Beginn: {config.startTime} Uhr
+          <div className="flex-1 truncate">
+            <h1 className="text-lg md:text-xl font-extrabold text-slate-900 truncate">{config.name}</h1>
+            <p className="text-[10px] md:text-xs font-semibold text-slate-500 truncate">
+              Vorrunde: {config.vorrundeLegs} Legs | {config.startTime} Uhr
             </p>
           </div>
         </div>
         
-        <div className="flex items-center gap-3">
-          <button onClick={handleExport} disabled={isExporting} className="flex items-center gap-2 text-sm font-semibold text-blue-700 hover:text-blue-900 transition-colors bg-blue-50 hover:bg-blue-100 px-4 py-2 rounded-lg border border-blue-200">
-            <CameraIcon /> {isExporting ? 'Speichert...' : 'Screenshot'}
-          </button>
-          <button onClick={handleReset} className="flex items-center gap-2 text-sm font-semibold text-slate-500 hover:text-red-600 transition-colors bg-slate-50 hover:bg-red-50 px-4 py-2 rounded-lg border border-slate-200">
-            <SettingsIcon /> Setup / Beenden
+        {/* DROPDOWN FÜR GERÄTE-ANSICHT */}
+        <div className="flex items-center justify-between md:justify-end gap-2 w-full md:w-auto overflow-x-auto pb-1 md:pb-0">
+          <select 
+            value={viewMode} 
+            onChange={(e) => setViewMode(e.target.value)}
+            className="bg-slate-100 border border-slate-300 text-slate-800 font-bold text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 p-2 shadow-sm"
+          >
+            <option value="tv">📺 Haupt-Ansicht (TV)</option>
+            {[...Array(config.boards)].map((_, i) => (
+              <option key={`b${i+1}`} value={`board${i+1}`}>🎯 Board {i+1} Controller</option>
+            ))}
+            <option value="ko">🏆 Finalrunde</option>
+          </select>
+
+          {viewMode === 'tv' && (
+            <button onClick={handleExport} disabled={isExporting} className="flex items-center gap-1 md:gap-2 text-xs md:text-sm font-semibold text-blue-700 bg-blue-50 px-3 py-2 rounded-lg border border-blue-200 flex-shrink-0">
+              <CameraIcon /> <span className="hidden sm:inline">{isExporting ? 'Speichert...' : 'Screenshot'}</span>
+            </button>
+          )}
+          <button onClick={handleReset} className="flex items-center gap-1 md:gap-2 text-xs md:text-sm font-semibold text-slate-500 hover:text-red-600 bg-slate-50 px-3 py-2 rounded-lg border border-slate-200 flex-shrink-0">
+            <SettingsIcon /> <span className="hidden sm:inline">Setup</span>
           </button>
         </div>
       </header>
 
-      <main id="export-area" className="flex-1 flex gap-4 p-4 min-h-0 bg-slate-100">
-        <div className="flex-[2] flex gap-4 min-h-0">
-          {[...Array(config.boards)].map((_, boardIdx) => {
-            const boardNum = boardIdx + 1;
-            const boardMatches = config.boards === 1 ? matches : matches.filter(m => m.board === boardNum);
-            
-            return (
-              <div key={boardNum} className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-                <div className="bg-slate-800 text-white py-2 px-4 flex justify-between items-center flex-none">
-                  <h2 className="font-bold uppercase tracking-wide text-sm">{config.boards === 2 ? `Board ${boardNum}` : 'Kompletter Spielplan'}</h2>
-                  <span className="text-xs bg-slate-700 px-2 py-1 rounded-md">{boardMatches.length} Spiele</span>
+      {/* --- ANSICHT: TV DASHBOARD --- */}
+      {viewMode === 'tv' && (
+        <main id="export-area" className="flex-1 flex flex-col lg:flex-row gap-4 p-4 min-h-0 bg-slate-100 overflow-y-auto lg:overflow-hidden">
+          {/* Linke Seite: Spielpläne */}
+          <div className="flex-[2] flex flex-col sm:flex-row gap-4 min-h-0 shrink-0">
+            {[...Array(config.boards)].map((_, boardIdx) => {
+              const boardNum = boardIdx + 1;
+              const boardMatches = config.boards === 1 ? matches : matches.filter(m => m.board === boardNum);
+              return (
+                <div key={boardNum} className="flex-1 flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[300px]">
+                  <div className="bg-slate-800 text-white py-2 px-4 flex justify-between items-center flex-none">
+                    <h2 className="font-bold uppercase tracking-wide text-sm">{config.boards === 2 ? `Board ${boardNum}` : 'Spielplan'}</h2>
+                    <span className="text-xs bg-slate-700 px-2 py-1 rounded-md">{boardMatches.length} Spiele</span>
+                  </div>
+                  <div className="flex-1 overflow-y-auto p-2 md:p-3 space-y-2 bg-slate-50/50">
+                    {boardMatches.map((match, idx) => {
+                      const team1 = teams.find(t => t.id === match.team1Id);
+                      const team2 = teams.find(t => t.id === match.team2Id);
+                      const isPlayed = match.score1 !== '' && match.score2 !== '';
+                      return (
+                        <div key={match.id} className={`flex items-center justify-between p-2 rounded-lg border ${isPlayed ? 'bg-white border-slate-200 opacity-60' : 'bg-white border-blue-100 shadow-sm'}`}>
+                          <div className="flex-none w-12 md:w-16 text-center border-r border-slate-200 pr-2 mr-2">
+                            <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Spiel {match.matchNumBoard || idx + 1}</div>
+                            <div className="text-xs md:text-sm font-black text-slate-700 flex items-center justify-center gap-1"><ClockIcon /> {match.time}</div>
+                          </div>
+                          <div className="flex-1 text-right pr-2 md:pr-4 truncate">
+                            <div className="font-bold text-slate-800 text-xs md:text-sm truncate">{team1?.name}</div>
+                            {config.art === 'team' && <div className="text-[9px] md:text-[10px] text-slate-500 truncate">{team1?.p1} & {team1?.p2}</div>}
+                          </div>
+                          <div className="flex items-center gap-1 md:gap-2 flex-none">
+                            <input type="number" min="0" value={match.score1} onChange={(e) => updateScore(match.id, 1, e.target.value)} className="w-10 h-8 md:w-12 md:h-10 text-center font-bold text-sm md:text-lg bg-slate-100 border border-slate-300 rounded focus:bg-white outline-none" />
+                            <span className="text-slate-400 font-bold">:</span>
+                            <input type="number" min="0" value={match.score2} onChange={(e) => updateScore(match.id, 2, e.target.value)} className="w-10 h-8 md:w-12 md:h-10 text-center font-bold text-sm md:text-lg bg-slate-100 border border-slate-300 rounded focus:bg-white outline-none" />
+                          </div>
+                          <div className="flex-1 pl-2 md:pl-4 truncate">
+                            <div className="font-bold text-slate-800 text-xs md:text-sm truncate">{team2?.name}</div>
+                            {config.art === 'team' && <div className="text-[9px] md:text-[10px] text-slate-500 truncate">{team2?.p1} & {team2?.p2}</div>}
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+
+          {/* Rechte Seite: Tabelle & K.O. */}
+          <div className="flex-[1] flex flex-col gap-4 min-h-0 shrink-0">
+            {/* Tabelle */}
+            <div className="flex-[1.2] flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-[250px]">
+              <div className="bg-blue-600 text-white py-2 px-4 flex-none"><h2 className="font-bold uppercase tracking-wide text-sm">Live-Tabelle</h2></div>
+              <div className="flex-1 overflow-y-auto">
+                <table className="w-full text-left text-xs md:text-sm">
+                  <thead className="bg-slate-100 text-slate-500 text-[10px] md:text-xs uppercase sticky top-0 shadow-sm z-10">
+                    <tr><th className="px-2 md:px-3 py-2">#</th><th className="px-2 md:px-3 py-2">Team</th><th className="px-2 md:px-3 py-2 text-center">Sp</th><th className="px-2 md:px-3 py-2 text-center">Legs</th><th className="px-2 md:px-3 py-2 text-center">Diff</th></tr>
+                  </thead>
+                  <tbody className="divide-y divide-slate-100">
+                    {tableData.map((row, index) => {
+                      const advances = index < placesToAdvance;
+                      return (
+                        <tr key={row.id} className={advances ? 'bg-green-50/50' : 'bg-red-50/30'}>
+                          <td className="px-2 md:px-3 py-2 font-bold text-slate-500"><div className={`w-5 h-5 md:w-6 md:h-6 rounded flex items-center justify-center text-[10px] md:text-xs ${advances ? 'bg-green-200 text-green-800' : 'bg-slate-200 text-slate-600'}`}>{index + 1}</div></td>
+                          <td className="px-2 md:px-3 py-2 font-bold text-slate-800 truncate max-w-[100px] md:max-w-[120px]">{row.name}</td>
+                          <td className="px-2 md:px-3 py-2 text-center font-semibold">{row.games}</td>
+                          <td className="px-2 md:px-3 py-2 text-center">{row.legsWon}:{row.legsLost}</td>
+                          <td className="px-2 md:px-3 py-2 text-center font-bold">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            {/* KO Baum */}
+            <div className="flex-[1] flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden min-h-[250px]">
+              <div className="bg-slate-800 text-white py-2 px-4 flex-none"><h2 className="font-bold uppercase tracking-wide text-sm">Live Finalrunde</h2></div>
+              <div className="flex-1 overflow-y-auto p-3 md:p-4 bg-slate-50 flex flex-col justify-start gap-3 md:gap-4">
+                {config.modus === 'elmenhorst' ? (
+                  <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm flex-none">
+                    <div className="bg-slate-200 flex justify-between items-center px-3 py-2 border-b border-slate-300">
+                      <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Halbfinale</span><span className="text-[10px] font-bold text-slate-500 italic">Best of {config.hfBestOf}</span>
+                    </div>
+                    <div className="p-2 flex items-center justify-between border-b border-slate-100">
+                      <span className="text-sm md:text-base font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team1}</span>
+                      <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-10 h-8 md:w-12 md:h-10 text-center font-bold text-base bg-slate-100 border border-slate-300 rounded focus:bg-white outline-none" />
+                    </div>
+                    <div className="p-2 flex items-center justify-between">
+                      <span className="text-sm md:text-base font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team2}</span>
+                      <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-10 h-8 md:w-12 md:h-10 text-center font-bold text-base bg-slate-100 border border-slate-300 rounded focus:bg-white outline-none" />
+                    </div>
+                  </div>
+                ) : (
+                  <div className="flex-none">
+                    <div className="grid grid-cols-2 gap-2 md:gap-3">
+                      <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
+                        <div className="bg-slate-200 text-center px-2 py-1 border-b border-slate-300"><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">HF 1</span></div>
+                        <div className="p-1 md:p-2 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
+                          <span className="text-xs md:text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team1}</span>
+                          <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-8 h-6 md:w-10 md:h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none" />
+                        </div>
+                        <div className="p-1 md:p-2 flex items-center justify-between bg-slate-50/50">
+                          <span className="text-xs md:text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team2}</span>
+                          <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-8 h-6 md:w-10 md:h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none" />
+                        </div>
+                      </div>
+                      <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
+                        <div className="bg-slate-200 text-center px-2 py-1 border-b border-slate-300"><span className="text-[10px] font-bold text-slate-600 uppercase tracking-wide">HF 2</span></div>
+                        <div className="p-1 md:p-2 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
+                          <span className="text-xs md:text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team1}</span>
+                          <input type="number" min="0" value={koScores.hf2_1} onChange={(e) => updateKoScore('hf2', 1, e.target.value)} className="w-8 h-6 md:w-10 md:h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none" />
+                        </div>
+                        <div className="p-1 md:p-2 flex items-center justify-between bg-slate-50/50">
+                          <span className="text-xs md:text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team2}</span>
+                          <input type="number" min="0" value={koScores.hf2_2} onChange={(e) => updateKoScore('hf2', 2, e.target.value)} className="w-8 h-6 md:w-10 md:h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none" />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="border-2 border-amber-400 rounded-lg bg-amber-50 overflow-hidden shadow-md flex-none">
+                  <div className="bg-amber-400 flex justify-between items-center px-3 py-2 border-b border-amber-500">
+                    <span className="text-xs font-black text-amber-950 uppercase tracking-widest">Finale</span><span className="text-[10px] font-bold text-amber-900 italic">Best of {config.finBestOf}</span>
+                  </div>
+                  <div className="p-2 md:p-2.5 flex items-center justify-between border-b border-amber-200">
+                    <span className={`text-sm md:text-base font-bold truncate pl-2 ${koTeams.fin_team1.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team1}</span>
+                    <input type="number" min="0" value={koScores.fin_1} onChange={(e) => updateKoScore('fin', 1, e.target.value)} className="w-10 h-8 md:w-12 md:h-10 text-center font-bold text-base md:text-lg bg-white border border-amber-400 rounded outline-none" />
+                  </div>
+                  <div className="p-2 md:p-2.5 flex items-center justify-between">
+                    <span className={`text-sm md:text-base font-bold truncate pl-2 ${koTeams.fin_team2.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team2}</span>
+                    <input type="number" min="0" value={koScores.fin_2} onChange={(e) => updateKoScore('fin', 2, e.target.value)} className="w-10 h-8 md:w-12 md:h-10 text-center font-bold text-base md:text-lg bg-white border border-amber-400 rounded outline-none" />
+                  </div>
+                </div>
+
+                {turnierSieger && (
+                  <div className="mt-1 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 p-3 md:p-4 rounded-xl text-center shadow-lg border-2 border-yellow-500 flex-none">
+                    <div className="text-[10px] md:text-[11px] uppercase font-black text-amber-900 tracking-widest flex justify-center items-center gap-1 mb-1"><TrophyIcon /> Turniersieger</div>
+                    <div className="text-xl md:text-2xl font-extrabold text-amber-950 truncate px-2 py-1">{turnierSieger}</div>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </main>
+      )}
+
+      {/* --- ANSICHT: MOBILE BOARD CONTROLLER (NUR DAS GEWÄHLTE BOARD WIRD GESTREAMT) --- */}
+      {viewMode.startsWith('board') && (() => {
+        const boardNum = parseInt(viewMode.replace('board', ''));
+        const boardMatches = matches.filter(m => m.board === boardNum);
+        
+        return (
+          <main className="flex-1 overflow-y-auto p-4 bg-slate-800">
+            <div className="max-w-md mx-auto">
+              <div className="bg-slate-900 text-white rounded-xl shadow-lg border border-slate-700 overflow-hidden">
+                <div className="bg-blue-600 p-4 text-center">
+                  <h2 className="text-xl font-black uppercase tracking-wider">🎯 Board {boardNum}</h2>
+                  <p className="text-blue-200 text-sm">Spiel-Eingabe</p>
                 </div>
                 
-                <div className="flex-1 overflow-y-auto p-3 space-y-2 bg-slate-50/50">
+                <div className="p-4 space-y-4">
                   {boardMatches.map((match, idx) => {
                     const team1 = teams.find(t => t.id === match.team1Id);
                     const team2 = teams.find(t => t.id === match.team2Id);
                     const isPlayed = match.score1 !== '' && match.score2 !== '';
                     
                     return (
-                      <div key={match.id} className={`flex items-center justify-between p-2 rounded-lg border ${isPlayed ? 'bg-white border-slate-200 opacity-60' : 'bg-white border-blue-100 shadow-sm'}`}>
-                        <div className="flex-none w-16 text-center border-r border-slate-200 pr-2 mr-2">
-                          <div className="text-[9px] font-bold text-slate-400 uppercase tracking-tighter">Spiel {match.matchNumBoard || idx + 1}</div>
-                          <div className="text-sm font-black text-slate-700 flex items-center justify-center gap-1">
-                            <ClockIcon /> {match.time}
+                      <div key={match.id} className={`p-4 rounded-xl border-2 ${isPlayed ? 'bg-slate-800 border-slate-700 opacity-60' : 'bg-slate-700 border-blue-500 shadow-lg'}`}>
+                        <div className="flex justify-between items-center mb-3 border-b border-slate-600 pb-2">
+                          <span className="text-xs font-bold text-slate-400 uppercase tracking-wider">Spiel {match.matchNumBoard || idx + 1}</span>
+                          <span className="text-sm font-black text-blue-400 flex items-center gap-1"><ClockIcon /> {match.time}</span>
+                        </div>
+                        
+                        <div className="flex items-center justify-between gap-4">
+                          <div className="flex-1 text-right">
+                            <div className="font-bold text-white text-base leading-tight">{team1?.name}</div>
+                            {config.art === 'team' && <div className="text-[11px] text-slate-400 mt-1">{team1?.p1} & {team1?.p2}</div>}
                           </div>
-                        </div>
-                        <div className="flex-1 text-right pr-4">
-                          <div className="font-bold text-slate-800 text-sm">{team1?.name}</div>
-                          {config.art === 'team' && <div className="text-[10px] text-slate-500">{team1?.p1} & {team1?.p2}</div>}
-                        </div>
-                        <div className="flex items-center gap-2 flex-none">
-                          <input type="number" min="0" value={match.score1} onChange={(e) => updateScore(match.id, 1, e.target.value)} className="w-12 h-10 text-center font-bold text-lg bg-slate-100 border border-slate-300 rounded-md focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
-                          <span className="text-slate-400 font-bold">:</span>
-                          <input type="number" min="0" value={match.score2} onChange={(e) => updateScore(match.id, 2, e.target.value)} className="w-12 h-10 text-center font-bold text-lg bg-slate-100 border border-slate-300 rounded-md focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
-                        </div>
-                        <div className="flex-1 pl-4">
-                          <div className="font-bold text-slate-800 text-sm">{team2?.name}</div>
-                          {config.art === 'team' && <div className="text-[10px] text-slate-500">{team2?.p1} & {team2?.p2}</div>}
+                          
+                          <div className="flex items-center gap-2 flex-none">
+                            <input type="number" min="0" value={match.score1} onChange={(e) => updateScore(match.id, 1, e.target.value)} className="w-16 h-14 text-center font-black text-2xl bg-white border-2 border-slate-400 rounded-lg focus:border-blue-500 outline-none text-slate-900" />
+                            <span className="text-slate-400 font-bold text-xl">:</span>
+                            <input type="number" min="0" value={match.score2} onChange={(e) => updateScore(match.id, 2, e.target.value)} className="w-16 h-14 text-center font-black text-2xl bg-white border-2 border-slate-400 rounded-lg focus:border-blue-500 outline-none text-slate-900" />
+                          </div>
+                          
+                          <div className="flex-1 text-left">
+                            <div className="font-bold text-white text-base leading-tight">{team2?.name}</div>
+                            {config.art === 'team' && <div className="text-[11px] text-slate-400 mt-1">{team2?.p1} & {team2?.p2}</div>}
+                          </div>
                         </div>
                       </div>
                     );
                   })}
+                  {boardMatches.length === 0 && <div className="text-center text-slate-400 py-8">Keine Spiele für dieses Board.</div>}
                 </div>
               </div>
-            );
-          })}
-        </div>
+            </div>
+          </main>
+        );
+      })()}
 
-        <div className="flex-[1] flex flex-col gap-4 min-h-0">
-          <div className="flex-[1.2] flex flex-col bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden min-h-0">
-            <div className="bg-blue-600 text-white py-2 px-4 flex-none">
-              <h2 className="font-bold uppercase tracking-wide text-sm">Live-Tabelle</h2>
-            </div>
-            <div className="flex-1 overflow-y-auto">
-              <table className="w-full text-left text-sm">
-                <thead className="bg-slate-100 text-slate-500 text-xs uppercase sticky top-0 shadow-sm z-10">
-                  <tr>
-                    <th className="px-3 py-2">#</th>
-                    <th className="px-3 py-2">Team</th>
-                    <th className="px-3 py-2 text-center">Sp</th>
-                    <th className="px-3 py-2 text-center">Legs</th>
-                    <th className="px-3 py-2 text-center">Diff</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100">
-                  {tableData.map((row, index) => {
-                    const advances = index < placesToAdvance;
-                    return (
-                      <tr key={row.id} className={advances ? 'bg-green-50/50' : 'bg-red-50/30'}>
-                        <td className="px-3 py-2 font-bold text-slate-500">
-                          <div className={`w-6 h-6 rounded flex items-center justify-center text-xs ${advances ? 'bg-green-200 text-green-800' : 'bg-slate-200 text-slate-600'}`}>
-                            {index + 1}
-                          </div>
-                        </td>
-                        <td className="px-3 py-2 font-bold text-slate-800 truncate max-w-[120px]">{row.name}</td>
-                        <td className="px-3 py-2 text-center font-semibold">{row.games}</td>
-                        <td className="px-3 py-2 text-center">{row.legsWon}:{row.legsLost}</td>
-                        <td className="px-3 py-2 text-center font-bold">{row.diff > 0 ? `+${row.diff}` : row.diff}</td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          <div className="flex-[1] flex flex-col bg-white rounded-xl shadow-md border border-slate-200 overflow-hidden min-h-0">
-            <div className="bg-slate-800 text-white py-2 px-4 flex-none">
-              <h2 className="font-bold uppercase tracking-wide text-sm">Live Finalrunde</h2>
-            </div>
+      {/* --- ANSICHT: MOBILE FINALRUNDE CONTROLLER --- */}
+      {viewMode === 'ko' && (
+        <main className="flex-1 overflow-y-auto p-4 bg-amber-50">
+          <div className="max-w-md mx-auto space-y-4">
             
-            <div className="flex-1 overflow-y-auto p-4 bg-slate-50 flex flex-col justify-start gap-4">
-              {config.modus === 'elmenhorst' ? (
-                <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm flex-none">
-                  <div className="bg-slate-200 flex justify-between items-center px-3 py-2 border-b border-slate-300">
-                    <span className="text-xs font-bold text-slate-600 uppercase tracking-wide">Halbfinale</span>
-                    <span className="text-[10px] font-bold text-slate-500 italic">Best of {config.hfBestOf} • {config.hfModus}</span>
-                  </div>
-                  <div className="p-2 flex items-center justify-between border-b border-slate-100">
-                    <span className="text-base font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team1}</span>
-                    <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-12 h-10 text-center font-bold text-base bg-slate-100 border border-slate-300 rounded focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
-                  <div className="p-2 flex items-center justify-between">
-                    <span className="text-base font-bold text-slate-800 truncate pl-2">{koTeams.hf1_team2}</span>
-                    <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-12 h-10 text-center font-bold text-base bg-slate-100 border border-slate-300 rounded focus:bg-white focus:ring-2 focus:ring-blue-500 outline-none" />
-                  </div>
+            {/* Halbfinale Controller */}
+            {config.modus === 'elmenhorst' ? (
+              <div className="bg-white rounded-xl shadow-lg border border-slate-300 overflow-hidden">
+                <div className="bg-slate-200 p-3 text-center border-b border-slate-300">
+                  <h3 className="font-bold text-slate-700 uppercase tracking-widest">Halbfinale</h3>
                 </div>
-              ) : (
-                <div className="flex-none">
-                  <div className="text-center mb-2">
-                    <span className="text-xs font-bold text-slate-500 uppercase tracking-widest bg-slate-200 px-3 py-1 rounded-full">
-                      Halbfinale • Best of {config.hfBestOf} • {config.hfModus}
-                    </span>
+                <div className="p-4 space-y-4">
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="font-bold text-slate-800 text-lg flex-1 truncate">{koTeams.hf1_team1}</span>
+                    <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-16 h-14 text-center font-black text-2xl bg-slate-100 border-2 border-slate-300 rounded-lg focus:bg-white outline-none" />
                   </div>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
-                      <div className="bg-slate-200 text-center px-2 py-1.5 border-b border-slate-300">
-                        <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">HF 1</span>
-                      </div>
-                      <div className="p-2 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
-                        <span className="text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team1}</span>
-                        <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
-                      </div>
-                      <div className="p-2 flex items-center justify-between bg-slate-50/50">
-                        <span className="text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf1_team2}</span>
-                        <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
-                      </div>
-                    </div>
-                    <div className="border border-slate-300 rounded-lg bg-white overflow-hidden shadow-sm">
-                      <div className="bg-slate-200 text-center px-2 py-1.5 border-b border-slate-300">
-                         <span className="text-[11px] font-bold text-slate-600 uppercase tracking-wide">HF 2</span>
-                      </div>
-                      <div className="p-2 flex items-center justify-between border-b border-slate-100 bg-slate-50/50">
-                        <span className="text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team1}</span>
-                        <input type="number" min="0" value={koScores.hf2_1} onChange={(e) => updateKoScore('hf2', 1, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
-                      </div>
-                      <div className="p-2 flex items-center justify-between bg-slate-50/50">
-                        <span className="text-sm font-bold text-slate-800 truncate pl-1">{koTeams.hf2_team2}</span>
-                        <input type="number" min="0" value={koScores.hf2_2} onChange={(e) => updateKoScore('hf2', 2, e.target.value)} className="w-10 h-8 text-center font-bold text-sm bg-white border border-slate-300 rounded outline-none focus:ring-1 focus:ring-blue-500" />
-                      </div>
-                    </div>
+                  <div className="flex items-center justify-between gap-4">
+                    <span className="font-bold text-slate-800 text-lg flex-1 truncate">{koTeams.hf1_team2}</span>
+                    <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-16 h-14 text-center font-black text-2xl bg-slate-100 border-2 border-slate-300 rounded-lg focus:bg-white outline-none" />
                   </div>
-                </div>
-              )}
-
-              <div className="border-2 border-amber-400 rounded-lg bg-amber-50 overflow-hidden shadow-md mt-1 flex-none">
-                <div className="bg-amber-400 flex justify-between items-center px-3 py-2 border-b border-amber-500">
-                  <span className="text-xs font-black text-amber-950 uppercase tracking-widest">Finale</span>
-                  <span className="text-[10px] font-bold text-amber-900 italic">Best of {config.finBestOf} • {config.finModus}</span>
-                </div>
-                <div className="p-2.5 flex items-center justify-between border-b border-amber-200">
-                  <span className={`text-base font-bold truncate pl-2 ${koTeams.fin_team1.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team1}</span>
-                  <input type="number" min="0" value={koScores.fin_1} onChange={(e) => updateKoScore('fin', 1, e.target.value)} className="w-12 h-10 text-center font-bold text-lg bg-white border border-amber-400 rounded outline-none focus:ring-2 focus:ring-amber-600 shadow-inner" />
-                </div>
-                <div className="p-2.5 flex items-center justify-between">
-                  <span className={`text-base font-bold truncate pl-2 ${koTeams.fin_team2.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team2}</span>
-                  <input type="number" min="0" value={koScores.fin_2} onChange={(e) => updateKoScore('fin', 2, e.target.value)} className="w-12 h-10 text-center font-bold text-lg bg-white border border-amber-400 rounded outline-none focus:ring-2 focus:ring-amber-600 shadow-inner" />
                 </div>
               </div>
-
-              {turnierSieger && (
-                <div className="mt-2 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 p-4 rounded-xl text-center shadow-lg border-2 border-yellow-500 flex-none">
-                  <div className="text-[11px] uppercase font-black text-amber-900 tracking-widest flex justify-center items-center gap-1 mb-1">
-                    <TrophyIcon /> Turniersieger
+            ) : (
+              <div className="space-y-4">
+                <div className="bg-white rounded-xl shadow-lg border border-slate-300 overflow-hidden">
+                  <div className="bg-slate-200 p-2 text-center border-b border-slate-300"><h3 className="font-bold text-slate-700 uppercase tracking-widest text-sm">Halbfinale 1</h3></div>
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-bold text-slate-800 flex-1 truncate">{koTeams.hf1_team1}</span>
+                      <input type="number" min="0" value={koScores.hf1_1} onChange={(e) => updateKoScore('hf1', 1, e.target.value)} className="w-14 h-12 text-center font-black text-xl bg-slate-100 border-2 border-slate-300 rounded-lg outline-none" />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-bold text-slate-800 flex-1 truncate">{koTeams.hf1_team2}</span>
+                      <input type="number" min="0" value={koScores.hf1_2} onChange={(e) => updateKoScore('hf1', 2, e.target.value)} className="w-14 h-12 text-center font-black text-xl bg-slate-100 border-2 border-slate-300 rounded-lg outline-none" />
+                    </div>
                   </div>
-                  <div className="text-2xl font-extrabold text-amber-950 truncate px-2 py-1 drop-shadow-sm">{turnierSieger}</div>
                 </div>
-              )}
-              
+                <div className="bg-white rounded-xl shadow-lg border border-slate-300 overflow-hidden">
+                  <div className="bg-slate-200 p-2 text-center border-b border-slate-300"><h3 className="font-bold text-slate-700 uppercase tracking-widest text-sm">Halbfinale 2</h3></div>
+                  <div className="p-4 space-y-3">
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-bold text-slate-800 flex-1 truncate">{koTeams.hf2_team1}</span>
+                      <input type="number" min="0" value={koScores.hf2_1} onChange={(e) => updateKoScore('hf2', 1, e.target.value)} className="w-14 h-12 text-center font-black text-xl bg-slate-100 border-2 border-slate-300 rounded-lg outline-none" />
+                    </div>
+                    <div className="flex items-center justify-between gap-4">
+                      <span className="font-bold text-slate-800 flex-1 truncate">{koTeams.hf2_team2}</span>
+                      <input type="number" min="0" value={koScores.hf2_2} onChange={(e) => updateKoScore('hf2', 2, e.target.value)} className="w-14 h-12 text-center font-black text-xl bg-slate-100 border-2 border-slate-300 rounded-lg outline-none" />
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Finale Controller */}
+            <div className="bg-white rounded-xl shadow-xl border-2 border-amber-400 overflow-hidden mt-6">
+              <div className="bg-amber-400 p-4 text-center border-b border-amber-500">
+                <h3 className="font-black text-amber-950 uppercase tracking-widest text-xl">Finale</h3>
+              </div>
+              <div className="p-4 space-y-4">
+                <div className="flex items-center justify-between gap-4">
+                  <span className={`font-bold text-lg flex-1 truncate ${koTeams.fin_team1.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team1}</span>
+                  <input type="number" min="0" value={koScores.fin_1} onChange={(e) => updateKoScore('fin', 1, e.target.value)} className="w-16 h-14 text-center font-black text-2xl bg-amber-50 border-2 border-amber-400 rounded-lg focus:bg-white outline-none text-slate-900" />
+                </div>
+                <div className="flex items-center justify-between gap-4">
+                  <span className={`font-bold text-lg flex-1 truncate ${koTeams.fin_team2.includes('Sieger') ? 'text-amber-700/60 italic' : 'text-slate-900'}`}>{koTeams.fin_team2}</span>
+                  <input type="number" min="0" value={koScores.fin_2} onChange={(e) => updateKoScore('fin', 2, e.target.value)} className="w-16 h-14 text-center font-black text-2xl bg-amber-50 border-2 border-amber-400 rounded-lg focus:bg-white outline-none text-slate-900" />
+                </div>
+              </div>
             </div>
+
+            {turnierSieger && (
+              <div className="mt-6 bg-gradient-to-r from-amber-300 via-yellow-400 to-amber-300 p-6 rounded-xl text-center shadow-lg border-4 border-yellow-500">
+                <div className="text-sm uppercase font-black text-amber-900 tracking-widest flex justify-center items-center gap-2 mb-2">
+                  <TrophyIcon /> Turniersieger
+                </div>
+                <div className="text-3xl font-extrabold text-amber-950 truncate drop-shadow-md">{turnierSieger}</div>
+              </div>
+            )}
+
           </div>
-        </div>
-      </main>
+        </main>
+      )}
+
     </div>
   );
 }
