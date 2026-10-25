@@ -6,7 +6,7 @@ import { getDatabase, ref, onValue, set } from "firebase/database";
 const firebaseConfig = {
   apiKey: "AIzaSyBK0G_704HgkBMV3IC_4-sqqjqPh7_IebM",
   authDomain: "darts-app-9d76e.firebaseapp.com",
-  databaseURL: "https://darts-app-9d76e-default-rtdb.firebaseio.com", // Fallback URL
+  databaseURL: "https://darts-app-9d76e-default-rtdb.europe-west1.firebasedatabase.app", 
   projectId: "darts-app-9d76e",
   storageBucket: "darts-app-9d76e.firebasestorage.app",
   messagingSenderId: "988886363315",
@@ -50,34 +50,28 @@ export default function App() {
     { id: 't1', name: '26er', p1: 'Lasse', p2: 'Lenny' },
     { id: 't2', name: 'Martial Darts', p1: 'Kevin', p2: 'Mats' },
     { id: 't3', name: 'The Darts Knights', p1: 'Veith', p2: 'Paddy' },
-    { id: 't4', name: 'The Lucky Two', p1: 'Remi', p2: 'Jens' },
-    { id: 't5', name: 'Dart Vaders', p1: 'Luke', p2: 'Anakin' },
-    { id: 't6', name: 'Bullseye Bandits', p1: 'Robin', p2: 'Hood' },
+    { id: 't4', name: 'The Lucky Two', p1: 'Remi', p2: 'Jens' }
   ]);
   
   const [matches, setMatches] = useState([]);
   const [koScores, setKoScores] = useState({ hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' });
 
-  // 1. Firebase Live-Sync Listener
+  // PURE CLOUD SYNC (Kein LocalStorage mehr!)
   useEffect(() => {
     const dbRef = ref(db, 'turnier');
     const unsubscribe = onValue(dbRef, (snapshot) => {
-      const data = snapshot.val();
-      if (data) {
+      if (snapshot.exists()) {
+        const data = snapshot.val();
         setIsStarted(data.isStarted || false);
-        setConfig(data.config || config);
-        setTeams(data.teams || []);
-        setMatches(data.matches || []);
-        setKoScores(data.koScores || { hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' });
-      } else {
-        // Initialisiert die Datenbank beim allerersten Start
-        set(dbRef, { isStarted: false, config, teams, matches: [], koScores });
+        if (data.config) setConfig(data.config);
+        if (data.teams) setTeams(data.teams);
+        if (data.matches) setMatches(data.matches);
+        if (data.koScores) setKoScores(data.koScores);
       }
     });
     return () => unsubscribe();
   }, []);
 
-  // --- Spezifische Schreib-Funktionen für Firebase ---
   const handleConfigChange = (key, value) => {
     const newConfig = { ...config, [key]: value };
     setConfig(newConfig);
@@ -168,12 +162,14 @@ export default function App() {
     });
     
     const freshKoScores = { hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' };
+    // Speichert den START in der Cloud
     set(ref(db, 'turnier'), { isStarted: true, config, teams, matches: newMatches, koScores: freshKoScores });
   };
 
   const handleReset = () => {
     if (window.confirm("Turnier wirklich beenden? Alle Spielstände gehen verloren!")) {
       const freshKoScores = { hf1_1: '', hf1_2: '', hf2_1: '', hf2_2: '', fin_1: '', fin_2: '' };
+      // Überschreibt die Cloud mit einem sauberen Reset
       set(ref(db, 'turnier'), { isStarted: false, config, teams, matches: [], koScores: freshKoScores });
     }
   };
@@ -212,7 +208,6 @@ export default function App() {
     setIsExporting(false);
   };
 
-  // --- Tabellen & KO Logik ---
   const getTable = () => {
     let table = teams.map(t => ({ id: t.id, name: t.name, games: 0, legsWon: 0, legsLost: 0, diff: 0 }));
     matches.forEach(m => {
@@ -259,7 +254,6 @@ export default function App() {
   const f1 = parseInt(koScores.fin_1); const f2 = parseInt(koScores.fin_2);
   if (!isNaN(f1) && !isNaN(f2) && f1 !== f2) turnierSieger = f1 > f2 ? koTeams.fin_team1 : koTeams.fin_team2;
 
-  // --- RENDER SETUP ---
   if (!isStarted) {
     return (
       <div className="min-h-screen bg-slate-50 text-slate-800 p-8 font-sans flex justify-center items-start">
@@ -269,7 +263,7 @@ export default function App() {
               <TrophyIcon />
             </div>
             <h1 className="text-3xl font-extrabold text-slate-900">Darts Turnier Manager</h1>
-            <p className="text-slate-500 mt-2">Cloud-Synchronisiertes Setup</p>
+            <p className="text-slate-500 mt-2 font-semibold">Live Cloud Sync aktiv ☁️</p>
           </div>
 
           <div className="grid grid-cols-2 gap-6 mb-8 bg-slate-50 p-6 rounded-xl border border-slate-100">
